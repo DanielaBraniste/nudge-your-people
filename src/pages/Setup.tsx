@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserPlus, Calendar, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ManagePeopleSheet from "@/components/ManagePeopleSheet";
 
 interface Person {
   id: string;
@@ -16,17 +17,30 @@ interface Person {
   timeType: "fixed" | "random";
   fixedTime?: string;
   timeWindow?: "morning" | "afternoon" | "evening";
+  method: "call" | "text" | "dm" | "other";
 }
 
 const Setup = () => {
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
+
+  useEffect(() => {
+    loadPeople();
+  }, []);
+
+  const loadPeople = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
+    if (storedPeople) {
+      setPeople(JSON.parse(storedPeople));
+    }
+  };
   const [currentPerson, setCurrentPerson] = useState({
     name: "",
     frequency: "weekly",
     timeType: "random" as "fixed" | "random",
     fixedTime: "12:00",
     timeWindow: "afternoon" as "morning" | "afternoon" | "evening",
+    method: "call" as "call" | "text" | "dm" | "other",
   });
 
   const handleAddPerson = () => {
@@ -44,6 +58,7 @@ const Setup = () => {
       name: currentPerson.name,
       frequency: currentPerson.frequency,
       timeType: currentPerson.timeType,
+      method: currentPerson.method,
       ...(currentPerson.timeType === "fixed" 
         ? { fixedTime: currentPerson.fixedTime }
         : { timeWindow: currentPerson.timeWindow }
@@ -57,6 +72,7 @@ const Setup = () => {
       timeType: "random",
       fixedTime: "12:00",
       timeWindow: "afternoon",
+      method: "call",
     });
 
     toast({
@@ -85,6 +101,7 @@ const Setup = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
+      <ManagePeopleSheet onUpdate={loadPeople} />
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -134,6 +151,26 @@ const Setup = () => {
                   <SelectItem value="biweekly">Bi-weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                   <SelectItem value="random">Random Intervals</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="method">Catch-up Method</Label>
+              <Select
+                value={currentPerson.method}
+                onValueChange={(value: "call" | "text" | "dm" | "other") =>
+                  setCurrentPerson({ ...currentPerson, method: value })
+                }
+              >
+                <SelectTrigger id="method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">📞 Call</SelectItem>
+                  <SelectItem value="text">💬 Text</SelectItem>
+                  <SelectItem value="dm">📱 DM</SelectItem>
+                  <SelectItem value="other">✨ Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -223,6 +260,10 @@ const Setup = () => {
                         ? `At ${person.fixedTime}`
                         : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
                       }
+                      {" • "}
+                      {person.method === "call" ? "📞 Call" : 
+                       person.method === "text" ? "💬 Text" :
+                       person.method === "dm" ? "📱 DM" : "✨ Other"}
                     </p>
                   </div>
                   <Button

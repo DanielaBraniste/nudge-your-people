@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ManagePeopleSheet from "@/components/ManagePeopleSheet";
 
 interface Person {
   id: string;
@@ -13,6 +14,7 @@ interface Person {
   timeType: "fixed" | "random";
   fixedTime?: string;
   timeWindow?: "morning" | "afternoon" | "evening";
+  method: "call" | "text" | "dm" | "other";
 }
 
 interface CatchUpEvent {
@@ -21,11 +23,54 @@ interface CatchUpEvent {
   date: Date;
   time: string;
   frequency: string;
+  method: "call" | "text" | "dm" | "other";
 }
 
 const CalendarView = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<CatchUpEvent[]>([]);
+
+  const loadEvents = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
+    
+    if (!storedPeople) {
+      navigate("/");
+      return;
+    }
+
+    const people: Person[] = JSON.parse(storedPeople);
+    const generatedEvents: CatchUpEvent[] = [];
+    const today = new Date();
+
+    people.forEach((person) => {
+      let currentDate = new Date(today);
+      
+      for (let i = 0; i < 5; i++) {
+        const time = person.timeType === "fixed" 
+          ? person.fixedTime! 
+          : getRandomTimeInWindow(person.timeWindow!);
+
+        generatedEvents.push({
+          id: `${person.id}-${i}`,
+          personName: person.name,
+          date: new Date(currentDate),
+          time,
+          frequency: person.frequency,
+          method: person.method,
+        });
+
+        currentDate = getNextDate(person.frequency, currentDate);
+      }
+    });
+
+    generatedEvents.sort((a, b) => {
+      const dateA = new Date(a.date.toDateString() + ' ' + a.time);
+      const dateB = new Date(b.date.toDateString() + ' ' + b.time);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    setEvents(generatedEvents.slice(0, 5));
+  };
 
   const getRandomTimeInWindow = (window: "morning" | "afternoon" | "evening"): string => {
     const windows = {
@@ -65,44 +110,7 @@ const CalendarView = () => {
   };
 
   useEffect(() => {
-    const storedPeople = localStorage.getItem("catchUpPeople");
-    
-    if (!storedPeople) {
-      navigate("/");
-      return;
-    }
-
-    const people: Person[] = JSON.parse(storedPeople);
-    const generatedEvents: CatchUpEvent[] = [];
-    const today = new Date();
-
-    people.forEach((person) => {
-      let currentDate = new Date(today);
-      
-      for (let i = 0; i < 5; i++) {
-        const time = person.timeType === "fixed" 
-          ? person.fixedTime! 
-          : getRandomTimeInWindow(person.timeWindow!);
-
-        generatedEvents.push({
-          id: `${person.id}-${i}`,
-          personName: person.name,
-          date: new Date(currentDate),
-          time,
-          frequency: person.frequency,
-        });
-
-        currentDate = getNextDate(person.frequency, currentDate);
-      }
-    });
-
-    generatedEvents.sort((a, b) => {
-      const dateA = new Date(a.date.toDateString() + ' ' + a.time);
-      const dateB = new Date(b.date.toDateString() + ' ' + b.time);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    setEvents(generatedEvents.slice(0, 5));
+    loadEvents();
 
     // Request notification permission
     if ("Notification" in window && Notification.permission === "default") {
@@ -115,7 +123,7 @@ const CalendarView = () => {
         }
       });
     }
-  }, [navigate]);
+  }, []);
 
   const formatDate = (date: Date): string => {
     const today = new Date();
@@ -137,6 +145,7 @@ const CalendarView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
+      <ManagePeopleSheet onUpdate={loadEvents} />
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button
@@ -186,9 +195,16 @@ const CalendarView = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Bell className="h-4 w-4" />
-                  <span>Notification scheduled</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Bell className="h-4 w-4" />
+                    <span>Notification scheduled</span>
+                  </div>
+                  <Badge variant="outline">
+                    {event.method === "call" ? "📞 Call" :
+                     event.method === "text" ? "💬 Text" :
+                     event.method === "dm" ? "📱 DM" : "✨ Other"}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
