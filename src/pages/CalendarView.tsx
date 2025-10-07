@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
+import { scheduleNotifications, requestNotificationPermission } from "@/utils/notifications";
 
 interface Person {
   id: string;
@@ -112,17 +113,16 @@ const CalendarView = () => {
   useEffect(() => {
     loadEvents();
 
-    // Request notification permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          toast({
-            title: "Notifications enabled",
-            description: "You'll receive reminders when it's time to catch up",
-          });
-        }
-      });
-    }
+    // Request notification permission and schedule notifications
+    requestNotificationPermission().then((granted) => {
+      if (granted) {
+        scheduleNotifications();
+        toast({
+          title: "Notifications enabled",
+          description: "You'll receive reminders when it's time to catch up",
+        });
+      }
+    });
   }, []);
 
   const formatDate = (date: Date): string => {
