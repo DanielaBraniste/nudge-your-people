@@ -6,9 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
-import { scheduleNotifications, requestNotificationPermission } from "@/utils/notifications";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 interface Person {
   id: string;
@@ -31,53 +28,17 @@ interface CatchUpEvent {
 
 const CalendarView = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
   const [events, setEvents] = useState<CatchUpEvent[]>([]);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      loadEvents();
-    }
-  }, [user]);
-
-  const loadEvents = async () => {
-    if (!user) return;
+  const loadEvents = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
     
-    const { data, error } = await supabase
-      .from("catch_up_people")
-      .select("*")
-      .eq("user_id", user.id);
-    
-    if (error) {
-      toast({
-        title: "Error loading data",
-        description: error.message,
-        variant: "destructive",
-      });
+    if (!storedPeople) {
+      navigate("/");
       return;
     }
 
-    if (!data || data.length === 0) {
-      setEvents([]);
-      return;
-    }
-
-    const people: Person[] = data.map(item => ({
-      id: item.id,
-      name: item.name,
-      frequency: item.frequency,
-      timeType: item.time_type as "fixed" | "random",
-      fixedTime: item.fixed_time,
-      timeWindow: item.time_window as "morning" | "afternoon" | "evening" | undefined,
-      method: item.method as "call" | "text" | "dm" | "other",
-    }));
-
+    const people: Person[] = JSON.parse(storedPeople);
     const generatedEvents: CatchUpEvent[] = [];
     const today = new Date();
 
@@ -149,13 +110,12 @@ const CalendarView = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      loadEvents();
+    loadEvents();
 
-      // Request notification permission and schedule notifications
-      requestNotificationPermission().then((granted) => {
-        if (granted) {
-          scheduleNotifications();
+    // Request notification permission
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
           toast({
             title: "Notifications enabled",
             description: "You'll receive reminders when it's time to catch up",
@@ -163,15 +123,7 @@ const CalendarView = () => {
         }
       });
     }
-  }, [user]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  }, []);
 
   const formatDate = (date: Date): string => {
     const today = new Date();

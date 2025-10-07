@@ -8,8 +8,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Separator } from "@/components/ui/separator";
 import { Menu, Trash2, Edit2, Save, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 interface Person {
   id: string;
@@ -26,68 +24,31 @@ interface ManagePeopleSheetProps {
 }
 
 const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
-  const { user } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Person | null>(null);
 
   useEffect(() => {
-    if (user) {
-      loadPeople();
-    }
-  }, [user]);
+    loadPeople();
+  }, []);
 
-  const loadPeople = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("catch_up_people")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      toast({
-        title: "Error loading data",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (data) {
-      setPeople(data.map(item => ({
-        id: item.id,
-        name: item.name,
-        frequency: item.frequency,
-        timeType: item.time_type as "fixed" | "random",
-        fixedTime: item.fixed_time,
-        timeWindow: item.time_window as "morning" | "afternoon" | "evening" | undefined,
-        method: item.method as "call" | "text" | "dm" | "other",
-      })));
+  const loadPeople = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
+    if (storedPeople) {
+      setPeople(JSON.parse(storedPeople));
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const person = people.find(p => p.id === id);
-    
-    const { error } = await supabase
-      .from("catch_up_people")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error removing person",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await loadPeople();
+  const savePeople = (updatedPeople: Person[]) => {
+    localStorage.setItem("catchUpPeople", JSON.stringify(updatedPeople));
+    setPeople(updatedPeople);
     if (onUpdate) onUpdate();
-    
+  };
+
+  const handleDelete = (id: string) => {
+    const person = people.find(p => p.id === id);
+    const updatedPeople = people.filter(p => p.id !== id);
+    savePeople(updatedPeople);
     toast({
       title: "Person removed",
       description: `${person?.name} has been removed from your catch-up list`,
@@ -99,36 +60,15 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
     setEditForm({ ...person });
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editForm) return;
 
-    const { error } = await supabase
-      .from("catch_up_people")
-      .update({
-        name: editForm.name,
-        frequency: editForm.frequency,
-        time_type: editForm.timeType,
-        method: editForm.method,
-        fixed_time: editForm.timeType === "fixed" ? editForm.fixedTime : null,
-        time_window: editForm.timeType === "random" ? editForm.timeWindow : null,
-      })
-      .eq("id", editForm.id);
-
-    if (error) {
-      toast({
-        title: "Error updating",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await loadPeople();
-    if (onUpdate) onUpdate();
-    
+    const updatedPeople = people.map(p => 
+      p.id === editForm.id ? editForm : p
+    );
+    savePeople(updatedPeople);
     setEditingId(null);
     setEditForm(null);
-    
     toast({
       title: "Updated",
       description: `${editForm.name}'s catch-up schedule has been updated`,

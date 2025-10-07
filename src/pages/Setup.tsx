@@ -6,11 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { UserPlus, Calendar, Clock, LogOut } from "lucide-react";
+import { UserPlus, Calendar, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 
 interface Person {
   id: string;
@@ -24,49 +22,16 @@ interface Person {
 
 const Setup = () => {
   const navigate = useNavigate();
-  const { user, loading, signOut } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
+    loadPeople();
+  }, []);
 
-  useEffect(() => {
-    if (user) {
-      loadPeople();
-    }
-  }, [user]);
-
-  const loadPeople = async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from("catch_up_people")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      toast({
-        title: "Error loading data",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (data) {
-      setPeople(data.map(item => ({
-        id: item.id,
-        name: item.name,
-        frequency: item.frequency,
-        timeType: item.time_type as "fixed" | "random",
-        fixedTime: item.fixed_time,
-        timeWindow: item.time_window as "morning" | "afternoon" | "evening" | undefined,
-        method: item.method as "call" | "text" | "dm" | "other",
-      })));
+  const loadPeople = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
+    if (storedPeople) {
+      setPeople(JSON.parse(storedPeople));
     }
   };
   const [currentPerson, setCurrentPerson] = useState({
@@ -78,9 +43,7 @@ const Setup = () => {
     method: "call" as "call" | "text" | "dm" | "other",
   });
 
-  const handleAddPerson = async () => {
-    if (!user) return;
-    
+  const handleAddPerson = () => {
     if (!currentPerson.name.trim()) {
       toast({
         title: "Name required",
@@ -90,69 +53,36 @@ const Setup = () => {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("catch_up_people")
-      .insert([{
-        user_id: user.id,
-        name: currentPerson.name,
-        frequency: currentPerson.frequency,
-        time_type: currentPerson.timeType,
-        method: currentPerson.method,
-        fixed_time: currentPerson.timeType === "fixed" ? currentPerson.fixedTime : null,
-        time_window: currentPerson.timeType === "random" ? currentPerson.timeWindow : null,
-      }])
-      .select()
-      .single();
+    const newPerson: Person = {
+      id: Date.now().toString(),
+      name: currentPerson.name,
+      frequency: currentPerson.frequency,
+      timeType: currentPerson.timeType,
+      method: currentPerson.method,
+      ...(currentPerson.timeType === "fixed" 
+        ? { fixedTime: currentPerson.fixedTime }
+        : { timeWindow: currentPerson.timeWindow }
+      ),
+    };
 
-    if (error) {
-      toast({
-        title: "Error adding person",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
+    setPeople([...people, newPerson]);
+    setCurrentPerson({
+      name: "",
+      frequency: "weekly",
+      timeType: "random",
+      fixedTime: "12:00",
+      timeWindow: "afternoon",
+      method: "call",
+    });
 
-    if (data) {
-      await loadPeople();
-      setCurrentPerson({
-        name: "",
-        frequency: "weekly",
-        timeType: "random",
-        fixedTime: "12:00",
-        timeWindow: "afternoon",
-        method: "call",
-      });
-
-      toast({
-        title: "Person added!",
-        description: `${data.name} has been added to your catch-up list`,
-      });
-    }
+    toast({
+      title: "Person added!",
+      description: `${newPerson.name} has been added to your catch-up list`,
+    });
   };
 
-  const handleRemovePerson = async (id: string) => {
-    const person = people.find(p => p.id === id);
-    
-    const { error } = await supabase
-      .from("catch_up_people")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      toast({
-        title: "Error removing person",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    await loadPeople();
-    toast({
-      title: "Person removed",
-      description: `${person?.name} has been removed`,
-    });
+  const handleRemovePerson = (id: string) => {
+    setPeople(people.filter(p => p.id !== id));
   };
 
   const handleViewCalendar = () => {
@@ -165,34 +95,13 @@ const Setup = () => {
       return;
     }
 
+    localStorage.setItem("catchUpPeople", JSON.stringify(people));
     navigate("/calendar");
   };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
       <ManagePeopleSheet onUpdate={loadPeople} />
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSignOut}
-        className="fixed top-4 left-4 z-50 gap-2"
-      >
-        <LogOut className="h-4 w-4" />
-        Sign Out
-      </Button>
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
