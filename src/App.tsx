@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Setup from "./pages/Setup";
 import CalendarView from "./pages/CalendarView";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -18,6 +19,7 @@ const App = () => (
       <InstallPrompt />
       <BrowserRouter>
         <Routes>
+          <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Setup />} />
           <Route path="/calendar" element={<CalendarView />} />
           <Route path="*" element={<NotFound />} />
