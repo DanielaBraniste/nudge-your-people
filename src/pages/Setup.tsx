@@ -34,11 +34,20 @@ const Setup = () => {
       setPeople(JSON.parse(storedPeople));
     }
   };
+
+  // Get current time in user's timezone for default value
+  const getCurrentTimeFormatted = (): string => {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   const [currentPerson, setCurrentPerson] = useState({
     name: "",
     frequency: "weekly",
     timeType: "random" as "fixed" | "random",
-    fixedTime: "12:00",
+    fixedTime: getCurrentTimeFormatted(),
     timeWindow: "afternoon" as "morning" | "afternoon" | "evening",
     method: "call" as "call" | "text" | "dm" | "other",
   });
@@ -65,12 +74,17 @@ const Setup = () => {
       ),
     };
 
-    setPeople([...people, newPerson]);
+    const updatedPeople = [...people, newPerson];
+    setPeople(updatedPeople);
+    
+    // Save to localStorage
+    localStorage.setItem("catchUpPeople", JSON.stringify(updatedPeople));
+    
     setCurrentPerson({
       name: "",
       frequency: "weekly",
       timeType: "random",
-      fixedTime: "12:00",
+      fixedTime: getCurrentTimeFormatted(),
       timeWindow: "afternoon",
       method: "call",
     });
@@ -82,7 +96,14 @@ const Setup = () => {
   };
 
   const handleRemovePerson = (id: string) => {
-    setPeople(people.filter(p => p.id !== id));
+    const updatedPeople = people.filter(p => p.id !== id);
+    setPeople(updatedPeople);
+    localStorage.setItem("catchUpPeople", JSON.stringify(updatedPeople));
+    
+    toast({
+      title: "Person removed",
+      description: "They have been removed from your catch-up list",
+    });
   };
 
   const handleViewCalendar = () => {
@@ -95,8 +116,15 @@ const Setup = () => {
       return;
     }
 
-    localStorage.setItem("catchUpPeople", JSON.stringify(people));
     navigate("/calendar");
+  };
+
+  const formatTimeDisplay = (time: string): string => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   return (
@@ -202,13 +230,16 @@ const Setup = () => {
 
               {currentPerson.timeType === "fixed" ? (
                 <div className="space-y-2 ml-6">
-                  <Label htmlFor="fixedTime">Select Time</Label>
+                  <Label htmlFor="fixedTime">Select Time (in your local timezone)</Label>
                   <Input
                     id="fixedTime"
                     type="time"
                     value={currentPerson.fixedTime}
                     onChange={(e) => setCurrentPerson({ ...currentPerson, fixedTime: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Current selection: {formatTimeDisplay(currentPerson.fixedTime)}
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2 ml-6">
@@ -257,7 +288,7 @@ const Setup = () => {
                       {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
                       {" • "}
                       {person.timeType === "fixed" 
-                        ? `At ${person.fixedTime}`
+                        ? `At ${formatTimeDisplay(person.fixedTime!)}`
                         : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
                       }
                       {" • "}
