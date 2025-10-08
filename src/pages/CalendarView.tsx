@@ -3,9 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, Bell } from "lucide-react";
+import { Calendar, ArrowLeft, Bell, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
+import { 
+  requestNotificationPermission, 
+  scheduleAllNotifications,
+  startNotificationChecker,
+  stopNotificationChecker
+} from "@/lib/notifications";
 
 interface Person {
   id: string;
@@ -29,6 +35,9 @@ interface CatchUpEvent {
 const CalendarView = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<CatchUpEvent[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallButton, setShowInstallButton] = useState(false);
 
   const loadEvents = () => {
     const storedPeople = localStorage.getItem("catchUpPeople");
@@ -40,7 +49,10 @@ const CalendarView = () => {
 
     const people: Person[] = JSON.parse(storedPeople);
     const generatedEvents: CatchUpEvent[] = [];
-    const today = new Date();
+    
+    // Use current time in user's timezone
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     people.forEach((person) => {
       let currentDate = new Date(today);
@@ -63,13 +75,31 @@ const CalendarView = () => {
       }
     });
 
+    // Sort by actual datetime
     generatedEvents.sort((a, b) => {
-      const dateA = new Date(a.date.toDateString() + ' ' + a.time);
-      const dateB = new Date(b.date.toDateString() + ' ' + b.time);
-      return dateA.getTime() - dateB.getTime();
+      const dateTimeA = combineDateAndTime(a.date, a.time);
+      const dateTimeB = combineDateAndTime(b.date, b.time);
+      return dateTimeA.getTime() - dateTimeB.getTime();
     });
 
-    setEvents(generatedEvents.slice(0, 5));
+    const upcomingEvents = generatedEvents
+      .filter(event => combineDateAndTime(event.date, event.time) > now)
+      .slice(0, 5);
+
+    setEvents(upcomingEvents);
+    
+    // Schedule notifications for these events
+    if (notificationsEnabled) {
+      scheduleAllNotifications(upcomingEvents);
+    }
+  };
+
+  // Helper to combine date and time into a single Date object
+  const combineDateAndTime = (date: Date, time: string): Date => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined;
   };
 
   const getRandomTimeInWindow = (window: "morning" | "afternoon" | "evening"): string => {
@@ -109,33 +139,20 @@ const CalendarView = () => {
     return next;
   };
 
-  useEffect(() => {
-    loadEvents();
-
-    // Request notification permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          toast({
-            title: "Notifications enabled",
-            description: "You'll receive reminders when it's time to catch up",
-          });
-        }
-      });
-    }
-  }, []);
-
   const formatDate = (date: Date): string => {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-    if (date.toDateString() === today.toDateString()) {
+    if (eventDate.getTime() === today.getTime()) {
       return "Today";
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (eventDate.getTime() === tomorrow.getTime()) {
       return "Tomorrow";
     } else {
-      return date.toLocaleDateString('en-US', { 
+      return date.toLocaleDateString(undefined, { 
         weekday: 'long', 
         month: 'short', 
         day: 'numeric' 
@@ -143,11 +160,82 @@ const CalendarView = () => {
     }
   };
 
+  const formatTime = (time: string): string => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const setupNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    
+    if (granted) {
+      setNotificationsEnabled(true);
+      startNotificationChecker();
+      scheduleAllNotifications(events);
+      
+      toast({
+        title: "Notifications enabled",
+        description: "You'll receive reminders when it's time to catch up",
+      });
+    } else {
+      toast({
+        title: "Notifications blocked",
+        description: "Please enable notifications in your browser settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      toast({
+        title: "App installed!",
+        description: "You can now use Catch-Up Reminder from your home screen",
+      });
+    }
+    
+    setDeferredPrompt(null);
+    setShowInstallButton(false);
+  };
+
+  useEffect(() => {
+    loadEvents();
+
+    // Listen for PWA install prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallButton(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Check if notifications are already enabled
+    if (Notification.permission === "granted") {
+      setNotificationsEnabled(true);
+      startNotificationChecker();
+    }
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      stopNotificationChecker();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
       <ManagePeopleSheet onUpdate={loadEvents} />
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
@@ -156,10 +244,33 @@ const CalendarView = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Setup
           </Button>
-          <Badge variant="secondary" className="gap-1">
-            <Bell className="h-3 w-3" />
-            Notifications Active
-          </Badge>
+          <div className="flex gap-2">
+            {showInstallButton && (
+              <Button
+                variant="outline"
+                onClick={handleInstallClick}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Install App
+              </Button>
+            )}
+            {!notificationsEnabled ? (
+              <Button
+                variant="outline"
+                onClick={setupNotifications}
+                className="gap-2"
+              >
+                <Bell className="h-4 w-4" />
+                Enable Notifications
+              </Button>
+            ) : (
+              <Badge variant="secondary" className="gap-1 px-3 py-1.5">
+                <Bell className="h-3 w-3" />
+                Notifications Active
+              </Badge>
+            )}
+          </div>
         </div>
 
         <div className="text-center space-y-2">
@@ -167,48 +278,64 @@ const CalendarView = () => {
             Upcoming Catch-Ups
           </h1>
           <p className="text-muted-foreground">
-            Your next 5 scheduled connections
+            Your next {events.length} scheduled connections
           </p>
         </div>
 
         <div className="space-y-4">
-          {events.map((event, index) => (
-            <Card 
-              key={event.id}
-              className="shadow-md border-0 bg-card/80 backdrop-blur hover:shadow-lg transition-all hover:scale-[1.02]"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-xl">{event.personName}</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {formatDate(event.date)} at {event.time}
-                    </CardDescription>
+          {events.map((event, index) => {
+            const eventDateTime = combineDateAndTime(event.date, event.time);
+            const now = new Date();
+            const hoursUntil = Math.floor((eventDateTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+            const isUpcoming = hoursUntil <= 24 && hoursUntil >= 0;
+            
+            return (
+              <Card 
+                key={event.id}
+                className={`shadow-md border-0 bg-card/80 backdrop-blur hover:shadow-lg transition-all hover:scale-[1.02] ${
+                  isUpcoming ? 'ring-2 ring-primary' : ''
+                }`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-xl">{event.personName}</CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        {formatDate(event.date)} at {formatTime(event.time)}
+                      </CardDescription>
+                      {isUpcoming && (
+                        <Badge variant="default" className="bg-primary text-primary-foreground mt-2">
+                          Coming up soon!
+                        </Badge>
+                      )}
+                    </div>
+                    <Badge 
+                      variant={index === 0 ? "default" : "secondary"}
+                      className={index === 0 ? "bg-gradient-to-r from-primary to-accent" : ""}
+                    >
+                      {event.frequency}
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant={index === 0 ? "default" : "secondary"}
-                    className={index === 0 ? "bg-gradient-to-r from-primary to-accent" : ""}
-                  >
-                    {event.frequency}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Bell className="h-4 w-4" />
-                    <span>Notification scheduled</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Bell className="h-4 w-4" />
+                      <span>
+                        {notificationsEnabled ? "Reminder scheduled" : "Enable notifications"}
+                      </span>
+                    </div>
+                    <Badge variant="outline">
+                      {event.method === "call" ? "📞 Call" :
+                       event.method === "text" ? "💬 Text" :
+                       event.method === "dm" ? "📱 DM" : "✨ Other"}
+                    </Badge>
                   </div>
-                  <Badge variant="outline">
-                    {event.method === "call" ? "📞 Call" :
-                     event.method === "text" ? "💬 Text" :
-                     event.method === "dm" ? "📱 DM" : "✨ Other"}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {events.length === 0 && (
