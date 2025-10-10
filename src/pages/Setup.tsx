@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UserPlus, Calendar, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Person {
   id: string;
@@ -23,6 +24,7 @@ interface Person {
 const Setup = () => {
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
+  const { scheduleNotification, cancelNotification, scheduleAllNotifications } = useNotifications();
 
   useEffect(() => {
     loadPeople();
@@ -65,7 +67,13 @@ const Setup = () => {
       ),
     };
 
-    setPeople([...people, newPerson]);
+    const updatedPeople = [...people, newPerson];
+    setPeople(updatedPeople);
+    localStorage.setItem("catchUpPeople", JSON.stringify(updatedPeople));
+    
+    // Schedule notification for this person
+    scheduleNotification(newPerson);
+    
     setCurrentPerson({
       name: "",
       frequency: "weekly",
@@ -82,7 +90,12 @@ const Setup = () => {
   };
 
   const handleRemovePerson = (id: string) => {
-    setPeople(people.filter(p => p.id !== id));
+    const updatedPeople = people.filter(p => p.id !== id);
+    setPeople(updatedPeople);
+    localStorage.setItem("catchUpPeople", JSON.stringify(updatedPeople));
+    
+    // Cancel notification for this person
+    cancelNotification(id);
   };
 
   const handleViewCalendar = () => {

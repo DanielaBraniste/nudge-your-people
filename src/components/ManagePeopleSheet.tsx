@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Separator } from "@/components/ui/separator";
 import { Menu, Trash2, Edit2, Save, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Person {
   id: string;
@@ -27,6 +28,7 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
   const [people, setPeople] = useState<Person[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Person | null>(null);
+  const { scheduleNotification, cancelNotification } = useNotifications();
 
   useEffect(() => {
     loadPeople();
@@ -49,6 +51,10 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
     const person = people.find(p => p.id === id);
     const updatedPeople = people.filter(p => p.id !== id);
     savePeople(updatedPeople);
+    
+    // Cancel notification
+    cancelNotification(id);
+    
     toast({
       title: "Person removed",
       description: `${person?.name} has been removed from your catch-up list`,
@@ -67,6 +73,11 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
       p.id === editForm.id ? editForm : p
     );
     savePeople(updatedPeople);
+    
+    // Reschedule notification with updated details
+    cancelNotification(editForm.id);
+    scheduleNotification(editForm);
+    
     setEditingId(null);
     setEditForm(null);
     toast({

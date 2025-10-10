@@ -7,6 +7,7 @@ import Setup from "./pages/Setup";
 import CalendarView from "./pages/CalendarView";
 import NotFound from "./pages/NotFound";
 import { InstallPrompt } from "./components/InstallPrompt";
+import { NotificationPermission } from "./components/NotificationPermission";
 
 const queryClient = new QueryClient();
 
@@ -16,6 +17,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <InstallPrompt />
+      <NotificationPermission />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />

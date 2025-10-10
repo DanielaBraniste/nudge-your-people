@@ -5,6 +5,9 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
+// Store for scheduled notifications
+const scheduledNotifications = new Map();
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -47,5 +50,46 @@ self.addEventListener('fetch', (event) => {
           return response;
         });
       })
+  );
+});
+
+// Handle messages from the app
+self.addEventListener('message', (event) => {
+  if (event.data.type === 'SCHEDULE_NOTIFICATION') {
+    const { id, title, body, scheduledTime } = event.data.data;
+    const delay = scheduledTime - Date.now();
+
+    if (delay > 0) {
+      const timeoutId = setTimeout(() => {
+        self.registration.showNotification(title, {
+          body: body,
+          icon: '/placeholder.svg',
+          badge: '/placeholder.svg',
+          tag: id,
+          requireInteraction: true,
+          data: { id },
+        });
+        scheduledNotifications.delete(id);
+      }, delay);
+
+      scheduledNotifications.set(id, timeoutId);
+    }
+  } else if (event.data.type === 'CANCEL_NOTIFICATION') {
+    const { id } = event.data.data;
+    const timeoutId = scheduledNotifications.get(id);
+    
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      scheduledNotifications.delete(id);
+    }
+  }
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.openWindow('/')
   );
 });
