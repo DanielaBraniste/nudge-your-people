@@ -24,18 +24,10 @@ interface Person {
 const Setup = () => {
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
-  const { scheduleNotification, cancelNotification, scheduleAllNotifications, getUserTimezone, getScheduledTime } = useNotifications();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const { scheduleNotification, cancelNotification, scheduleAllNotifications } = useNotifications();
 
   useEffect(() => {
     loadPeople();
-    
-    // Update current time every minute
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    
-    return () => clearInterval(timer);
   }, []);
 
   const loadPeople = () => {
@@ -130,9 +122,6 @@ const Setup = () => {
           </h1>
           <p className="text-muted-foreground text-lg">
             Never miss an opportunity to connect with the people who matter
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Your timezone: {getUserTimezone()} • Current time: {currentTime.toLocaleTimeString()}
           </p>
         </div>
 
@@ -270,43 +259,35 @@ const Setup = () => {
               <CardDescription>People you're staying in touch with</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {people.map((person) => {
-                const scheduledTime = getScheduledTime(person.id);
-                return (
-                  <div
-                    key={person.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                  >
-                    <div className="space-y-1 flex-1">
-                      <p className="font-semibold">{person.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
-                        {" • "}
-                        {person.timeType === "fixed" 
-                          ? `At ${person.fixedTime}`
-                          : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
-                        }
-                        {" • "}
-                        {person.method === "call" ? "📞 Call" : 
-                         person.method === "text" ? "💬 Text" :
-                         person.method === "dm" ? "📱 DM" : "✨ Other"}
-                      </p>
-                      {scheduledTime && (
-                        <p className="text-xs text-primary">
-                          Next reminder: {scheduledTime}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemovePerson(person.id)}
-                    >
-                      Remove
-                    </Button>
+              {people.map((person) => (
+                <div
+                  key={person.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                >
+                  <div className="space-y-1">
+                    <p className="font-semibold">{person.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
+                      {" • "}
+                      {person.timeType === "fixed" 
+                        ? `At ${person.fixedTime}`
+                        : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
+                      }
+                      {" • "}
+                      {person.method === "call" ? "📞 Call" : 
+                       person.method === "text" ? "💬 Text" :
+                       person.method === "dm" ? "📱 DM" : "✨ Other"}
+                    </p>
                   </div>
-                );
-              })}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemovePerson(person.id)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
 
               <Button onClick={handleViewCalendar} className="w-full mt-6" size="lg" variant="default">
                 <Calendar className="mr-2 h-4 w-4" />

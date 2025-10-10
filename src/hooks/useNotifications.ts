@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
 
 interface Person {
   id: string;
@@ -115,10 +113,6 @@ export const useNotifications = () => {
     const now = new Date().getTime();
     const scheduledTime = nextTime.getTime();
     const delay = scheduledTime - now;
-    
-    // Get user's timezone
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const formattedTime = formatInTimeZone(nextTime, userTimezone, 'MMM d, yyyy h:mm a zzz');
 
     // Store scheduled notification in localStorage
     const scheduledNotifications = JSON.parse(
@@ -129,8 +123,6 @@ export const useNotifications = () => {
       personName: person.name,
       method: person.method,
       scheduledTime: scheduledTime,
-      formattedTime: formattedTime,
-      timezone: userTimezone,
     };
     localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
 
@@ -147,11 +139,6 @@ export const useNotifications = () => {
           },
         });
       }
-      
-      toast({
-        title: "Reminder scheduled",
-        description: `Next catch-up: ${formattedTime}`,
-      });
     }
   };
 
@@ -187,17 +174,6 @@ export const useNotifications = () => {
     people.forEach(person => scheduleNotification(person));
   };
 
-  const getScheduledTime = (personId: string): string | null => {
-    const scheduledNotifications = JSON.parse(
-      localStorage.getItem('scheduledNotifications') || '{}'
-    );
-    return scheduledNotifications[personId]?.formattedTime || null;
-  };
-
-  const getUserTimezone = (): string => {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  };
-
   return {
     permission,
     requestPermission,
@@ -205,7 +181,5 @@ export const useNotifications = () => {
     cancelNotification,
     scheduleAllNotifications,
     getNextCatchUpTime,
-    getScheduledTime,
-    getUserTimezone,
   };
 };
