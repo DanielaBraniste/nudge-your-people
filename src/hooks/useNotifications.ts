@@ -52,7 +52,7 @@ export const useNotifications = () => {
 
   const getNextCatchUpTime = (person: Person, lastContactDate?: Date): Date => {
     const now = lastContactDate || new Date();
-    const nextDate = new Date(now);
+    let nextDate = new Date(now);
 
     // Calculate next date based on frequency
     switch (person.frequency) {
@@ -73,6 +73,43 @@ export const useNotifications = () => {
         const randomDays = Math.floor(Math.random() * 12) + 3;
         nextDate.setDate(nextDate.getDate() + randomDays);
         break;
+    }
+
+    // For non-daily schedules, check if the day already has 3+ catch-ups
+    if (person.frequency !== 'daily') {
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      
+      let attempts = 0;
+      const maxAttempts = 30; // Prevent infinite loop
+      
+      while (attempts < maxAttempts) {
+        const dateStr = nextDate.toDateString();
+        
+        // Count non-daily catch-ups on this date (excluding current person)
+        const catchUpsOnDate = Object.values(scheduledNotifications).filter((notif: any) => {
+          if (notif.personId === person.id) return false; // Exclude current person
+          
+          const notifDate = new Date(notif.scheduledTime);
+          const storedPeople = localStorage.getItem('catchUpPeople');
+          if (storedPeople) {
+            const people: Person[] = JSON.parse(storedPeople);
+            const notifPerson = people.find(p => p.id === notif.personId);
+            if (notifPerson && notifPerson.frequency === 'daily') return false; // Exclude daily
+          }
+          
+          return notifDate.toDateString() === dateStr;
+        }).length;
+        
+        if (catchUpsOnDate < 3) {
+          break; // Found a suitable day
+        }
+        
+        // Move to next day
+        nextDate.setDate(nextDate.getDate() + 1);
+        attempts++;
+      }
     }
 
     // Set the time
