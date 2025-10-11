@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface Person {
   id: string;
@@ -113,6 +114,10 @@ export const useNotifications = () => {
     const now = new Date().getTime();
     const scheduledTime = nextTime.getTime();
     const delay = scheduledTime - now;
+    
+    // Get user's timezone
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
     // Store scheduled notification in localStorage
     const scheduledNotifications = JSON.parse(
@@ -123,6 +128,8 @@ export const useNotifications = () => {
       personName: person.name,
       method: person.method,
       scheduledTime: scheduledTime,
+      formattedTime: formattedTime,
+      timezone: timezone,
     };
     localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
 

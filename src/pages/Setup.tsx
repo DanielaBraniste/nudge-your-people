@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { UserPlus, Calendar, Clock } from "lucide-react";
+import { UserPlus, Calendar, Clock, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
 import { useNotifications } from "@/hooks/useNotifications";
+import { format } from "date-fns";
 
 interface Person {
   id: string;
@@ -24,7 +25,16 @@ interface Person {
 const Setup = () => {
   const navigate = useNavigate();
   const [people, setPeople] = useState<Person[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const { scheduleNotification, cancelNotification, scheduleAllNotifications } = useNotifications();
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     loadPeople();
@@ -123,6 +133,10 @@ const Setup = () => {
           <p className="text-muted-foreground text-lg">
             Never miss an opportunity to connect with the people who matter
           </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            <span>{timezone} • {format(currentTime, 'PPp')}</span>
+          </div>
         </div>
 
         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur">
@@ -259,35 +273,47 @@ const Setup = () => {
               <CardDescription>People you're staying in touch with</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {people.map((person) => (
-                <div
-                  key={person.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                >
-                  <div className="space-y-1">
-                    <p className="font-semibold">{person.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
-                      {" • "}
-                      {person.timeType === "fixed" 
-                        ? `At ${person.fixedTime}`
-                        : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
-                      }
-                      {" • "}
-                      {person.method === "call" ? "📞 Call" : 
-                       person.method === "text" ? "💬 Text" :
-                       person.method === "dm" ? "📱 DM" : "✨ Other"}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemovePerson(person.id)}
+              {people.map((person) => {
+                const scheduledNotifications = JSON.parse(
+                  localStorage.getItem('scheduledNotifications') || '{}'
+                );
+                const notification = scheduledNotifications[person.id];
+                
+                return (
+                  <div
+                    key={person.id}
+                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
                   >
-                    Remove
-                  </Button>
-                </div>
-              ))}
+                    <div className="space-y-1">
+                      <p className="font-semibold">{person.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
+                        {" • "}
+                        {person.timeType === "fixed" 
+                          ? `At ${person.fixedTime}`
+                          : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
+                        }
+                        {" • "}
+                        {person.method === "call" ? "📞 Call" : 
+                         person.method === "text" ? "💬 Text" :
+                         person.method === "dm" ? "📱 DM" : "✨ Other"}
+                      </p>
+                      {notification && (
+                        <p className="text-xs text-muted-foreground/80">
+                          Next reminder: {notification.formattedTime}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemovePerson(person.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                );
+              })}
 
               <Button onClick={handleViewCalendar} className="w-full mt-6" size="lg" variant="default">
                 <Calendar className="mr-2 h-4 w-4" />
