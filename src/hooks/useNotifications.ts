@@ -204,8 +204,7 @@ export const useNotifications = () => {
         console.error('Error checking date availability:', error);
       }
     }
-
-    // Set the time
+// Set the time
     if (person.timeType === 'fixed' && person.fixedTime) {
       const [hours, minutes] = person.fixedTime.split(':');
       nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -236,8 +235,33 @@ export const useNotifications = () => {
       nextDate.setHours(randomHour, randomMinute, 0, 0);
     }
 
+    // CRITICAL FIX: If the calculated time is in the past, move to next occurrence
+    const now = new Date();
+    if (nextDate.getTime() <= now.getTime()) {
+      // Time has already passed, calculate next occurrence
+      switch (person.frequency) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + 1);
+          break;
+        case 'weekly':
+          nextDate.setDate(nextDate.getDate() + 7);
+          break;
+        case 'biweekly':
+          nextDate.setDate(nextDate.getDate() + 14);
+          break;
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          break;
+        case 'random':
+          const randomDays = Math.floor(Math.random() * 12) + 3;
+          nextDate.setDate(nextDate.getDate() + randomDays);
+          break;
+      }
+    }
+
     return nextDate;
   };
+
 
   const scheduleNotification = (person: Person) => {
     try {
