@@ -8,6 +8,8 @@ interface Person {
   frequency: string;
   timeType: "fixed" | "random";
   fixedTime?: string;
+  fixedDay?: string;
+  fixedDayOfMonth?: number;
   timeWindow?: "morning" | "afternoon" | "evening";
   method: "call" | "text" | "dm" | "other";
 }
@@ -138,28 +140,89 @@ export const useNotifications = () => {
     }
   };
 
+  const getDayOfWeekNumber = (dayName: string): number => {
+    const days: { [key: string]: number } = {
+      'sunday': 0,
+      'monday': 1,
+      'tuesday': 2,
+      'wednesday': 3,
+      'thursday': 4,
+      'friday': 5,
+      'saturday': 6
+    };
+    return days[dayName.toLowerCase()] || 1; // Default to Monday if not found
+  };
+
+  const getNextOccurrenceOfDay = (targetDay: number, weeksToAdd: number = 1): Date => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    let daysUntilTarget = targetDay - currentDay;
+    
+    if (daysUntilTarget <= 0) {
+      daysUntilTarget += 7 * weeksToAdd;
+    }
+    
+    const nextDate = new Date(now);
+    nextDate.setDate(now.getDate() + daysUntilTarget);
+    return nextDate;
+  };
+
+  const getNextOccurrenceOfDayOfMonth = (targetDay: number): Date => {
+    const now = new Date();
+    let nextDate = new Date(now);
+    
+    // Try current month first
+    nextDate.setDate(targetDay);
+    
+    // If the date is in the past or doesn't exist in current month, try next month
+    if (nextDate <= now || nextDate.getDate() !== targetDay) {
+      nextDate = new Date(now.getFullYear(), now.getMonth() + 1, targetDay);
+      
+      // If day doesn't exist in next month either (e.g., Feb 30), use last day of month
+      if (nextDate.getDate() !== targetDay) {
+        nextDate = new Date(now.getFullYear(), now.getMonth() + 2, 0); // Last day of next month
+      }
+    }
+    
+    return nextDate;
+  };
+
   const getNextCatchUpTime = (person: Person, lastContactDate?: Date): Date => {
     const now = lastContactDate || new Date();
     let nextDate = new Date(now);
 
-    // Calculate next date based on frequency
-    switch (person.frequency) {
-      case 'daily':
-        nextDate.setDate(nextDate.getDate() + 1);
-        break;
-      case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7);
-        break;
-      case 'biweekly':
-        nextDate.setDate(nextDate.getDate() + 14);
-        break;
-      case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      case 'random':
-        const randomDays = Math.floor(Math.random() * 12) + 3;
-        nextDate.setDate(nextDate.getDate() + randomDays);
-        break;
+    // Handle fixed day scheduling for weekly/biweekly
+    if (person.timeType === 'fixed' && person.fixedDay && 
+        (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
+      const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
+      const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
+      nextDate = getNextOccurrenceOfDay(targetDayNumber, weeksToAdd);
+    }
+    // Handle fixed day of month for monthly
+    else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
+             person.frequency === 'monthly') {
+      nextDate = getNextOccurrenceOfDayOfMonth(person.fixedDayOfMonth);
+    }
+    // Handle other frequency patterns
+    else {
+      switch (person.frequency) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + 1);
+          break;
+        case 'weekly':
+          nextDate.setDate(nextDate.getDate() + 7);
+          break;
+        case 'biweekly':
+          nextDate.setDate(nextDate.getDate() + 14);
+          break;
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          break;
+        case 'random':
+          const randomDays = Math.floor(Math.random() * 12) + 3;
+          nextDate.setDate(nextDate.getDate() + randomDays);
+          break;
+      }
     }
 
     // For non-daily schedules, check if the day already has 3+ catch-ups
@@ -197,14 +260,26 @@ export const useNotifications = () => {
             break;
           }
           
-          nextDate.setDate(nextDate.getDate() + 1);
+          // Move to next occurrence
+          if (person.timeType === 'fixed' && person.fixedDay && 
+              (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
+            const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
+            nextDate.setDate(nextDate.getDate() + (7 * weeksToAdd));
+          } else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
+                     person.frequency === 'monthly') {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+          } else {
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          
           attempts++;
         }
       } catch (error) {
         console.error('Error checking date availability:', error);
       }
     }
-// Set the time
+
+    // Set the time
     if (person.timeType === 'fixed' && person.fixedTime) {
       const [hours, minutes] = person.fixedTime.split(':');
       nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
@@ -235,33 +310,60 @@ export const useNotifications = () => {
       nextDate.setHours(randomHour, randomMinute, 0, 0);
     }
 
-// CRITICAL FIX: If the calculated time is in the past, move to next occurrence
+    // CRITICAL FIX: If the calculated time is in the past, move to next occurrence
     const currentTime = new Date();
     if (nextDate.getTime() <= currentTime.getTime()) {
       // Time has already passed, calculate next occurrence
-      switch (person.frequency) {
-        case 'daily':
-          nextDate.setDate(nextDate.getDate() + 1);
-          break;
-        case 'weekly':
-          nextDate.setDate(nextDate.getDate() + 7);
-          break;
-        case 'biweekly':
-          nextDate.setDate(nextDate.getDate() + 14);
-          break;
-        case 'monthly':
-          nextDate.setMonth(nextDate.getMonth() + 1);
-          break;
-        case 'random':
-          const randomDays = Math.floor(Math.random() * 12) + 3;
-          nextDate.setDate(nextDate.getDate() + randomDays);
-          break;
+      if (person.timeType === 'fixed' && person.fixedDay && 
+          (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
+        const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
+        const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
+        nextDate = getNextOccurrenceOfDay(targetDayNumber, weeksToAdd);
+        
+        // Re-set the time
+        if (person.fixedTime) {
+          const [hours, minutes] = person.fixedTime.split(':');
+          nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        }
+      } else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
+                 person.frequency === 'monthly') {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        nextDate.setDate(person.fixedDayOfMonth);
+        
+        // Handle months with fewer days
+        if (nextDate.getDate() !== person.fixedDayOfMonth) {
+          nextDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0); // Last day of month
+        }
+        
+        // Re-set the time
+        if (person.fixedTime) {
+          const [hours, minutes] = person.fixedTime.split(':');
+          nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        }
+      } else {
+        switch (person.frequency) {
+          case 'daily':
+            nextDate.setDate(nextDate.getDate() + 1);
+            break;
+          case 'weekly':
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+          case 'biweekly':
+            nextDate.setDate(nextDate.getDate() + 14);
+            break;
+          case 'monthly':
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case 'random':
+            const randomDays = Math.floor(Math.random() * 12) + 3;
+            nextDate.setDate(nextDate.getDate() + randomDays);
+            break;
+        }
       }
     }
 
     return nextDate;
   };
-
 
   const scheduleNotification = (person: Person) => {
     try {
