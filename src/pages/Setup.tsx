@@ -27,14 +27,12 @@ const Setup = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const { scheduleNotification, cancelNotification, scheduleAllNotifications } = useNotifications();
-
+const { scheduleNotification, cancelNotification, scheduleAllNotifications, requestPermission } = useNotifications();
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
-    return () => clearInterval(timer);
-  }, []);
+  if (requestPermission) {
+    requestPermission();
+  }
+}, [requestPermission]);
 
   useEffect(() => {
     loadPeople();
