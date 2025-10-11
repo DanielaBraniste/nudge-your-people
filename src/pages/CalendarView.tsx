@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, Bell } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface Person {
   id: string;
@@ -24,105 +25,115 @@ interface CatchUpEvent {
   time: string;
   frequency: string;
   method: "call" | "text" | "dm" | "other";
+  scheduledTime: number;
 }
 
 const CalendarView = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<CatchUpEvent[]>([]);
+  const { scheduleNotification } = useNotifications();
+
+  const cleanupAndLoadEvents = () => {
+    try {
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      const storedPeople = localStorage.getItem('catchUpPeople');
+      
+      if (!storedPeople) {
+        navigate("/");
+        return;
+      }
+
+      const people: Person[] = JSON.parse(storedPeople);
+      const now = Date.now();
+      let needsUpdate = false;
+
+      // Clean up past notifications
+      Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+        if (notif.scheduledTime < now && !notif.fired) {
+          // Delete the old notification
+          delete scheduledNotifications[personId];
+          needsUpdate = true;
+          
+          // Find the person and reschedule
+          const person = people.find(p => p.id === personId);
+          if (person) {
+            setTimeout(() => {
+              scheduleNotification(person);
+              loadEvents(); // Reload after rescheduling
+            }, 100);
+          }
+        }
+      });
+
+      if (needsUpdate) {
+        localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+      }
+
+      // Load events after cleanup
+      setTimeout(() => loadEvents(), needsUpdate ? 200 : 0);
+    } catch (error) {
+      console.error('Error cleaning up notifications:', error);
+      loadEvents();
+    }
+  };
 
   const loadEvents = () => {
-    const storedPeople = localStorage.getItem("catchUpPeople");
-    
-    if (!storedPeople) {
-      navigate("/");
-      return;
-    }
-
-    const people: Person[] = JSON.parse(storedPeople);
-    const generatedEvents: CatchUpEvent[] = [];
-    const today = new Date();
-
-    people.forEach((person) => {
-      let currentDate = new Date(today);
+    try {
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      const storedPeople = localStorage.getItem('catchUpPeople');
       
-      for (let i = 0; i < 5; i++) {
-        const time = person.timeType === "fixed" 
-          ? person.fixedTime! 
-          : getRandomTimeInWindow(person.timeWindow!);
-
-        generatedEvents.push({
-          id: `${person.id}-${i}`,
-          personName: person.name,
-          date: new Date(currentDate),
-          time,
-          frequency: person.frequency,
-          method: person.method,
-        });
-
-        currentDate = getNextDate(person.frequency, currentDate);
+      if (!storedPeople) {
+        navigate("/");
+        return;
       }
-    });
 
-    generatedEvents.sort((a, b) => {
-      const dateA = new Date(a.date.toDateString() + ' ' + a.time);
-      const dateB = new Date(b.date.toDateString() + ' ' + b.time);
-      return dateA.getTime() - dateB.getTime();
-    });
+      const people: Person[] = JSON.parse(storedPeople);
+      const now = Date.now();
+      const upcomingEvents: CatchUpEvent[] = [];
 
-    setEvents(generatedEvents.slice(0, 5));
-  };
+      // Create events from scheduled notifications
+      Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+        // Only include future notifications that haven't fired
+        if (notif.scheduledTime > now && !notif.fired) {
+          const person = people.find(p => p.id === personId);
+          if (person) {
+            const scheduledDate = new Date(notif.scheduledTime);
+            
+            upcomingEvents.push({
+              id: personId,
+              personName: notif.personName,
+              date: scheduledDate,
+              time: scheduledDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              }),
+              frequency: person.frequency,
+              method: notif.method,
+              scheduledTime: notif.scheduledTime,
+            });
+          }
+        }
+      });
 
-  const getRandomTimeInWindow = (window: "morning" | "afternoon" | "evening"): string => {
-    const windows = {
-      morning: { start: 7, end: 11 },
-      afternoon: { start: 13, end: 17 },
-      evening: { start: 18, end: 22 },
-    };
+      // Sort by scheduled time
+      upcomingEvents.sort((a, b) => a.scheduledTime - b.scheduledTime);
 
-    const { start, end } = windows[window];
-    const hour = Math.floor(Math.random() * (end - start)) + start;
-    const minute = Math.floor(Math.random() * 60);
-    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-  };
-
-  const getNextDate = (frequency: string, lastDate: Date): Date => {
-    const next = new Date(lastDate);
-    
-    switch (frequency) {
-      case "daily":
-        next.setDate(next.getDate() + 1);
-        break;
-      case "weekly":
-        next.setDate(next.getDate() + 7);
-        break;
-      case "biweekly":
-        next.setDate(next.getDate() + 14);
-        break;
-      case "monthly":
-        next.setMonth(next.getMonth() + 1);
-        break;
-      case "random":
-        next.setDate(next.getDate() + Math.floor(Math.random() * 7) + 1);
-        break;
+      // Take only the next 5
+      setEvents(upcomingEvents.slice(0, 5));
+    } catch (error) {
+      console.error('Error loading events:', error);
+      setEvents([]);
     }
-    
-    return next;
   };
 
   useEffect(() => {
-    loadEvents();
-
-    // Request notification permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          toast({
-            title: "Notifications enabled",
-            description: "You'll receive reminders when it's time to catch up",
-          });
-        }
-      });
-    }
+    // Run cleanup first, then load events
+    cleanupAndLoadEvents();
   }, []);
 
   const formatDate = (date: Date): string => {
@@ -130,9 +141,13 @@ const CalendarView = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    if (date.toDateString() === today.toDateString()) {
+    const eventDateStr = date.toDateString();
+    const todayStr = today.toDateString();
+    const tomorrowStr = tomorrow.toDateString();
+
+    if (eventDateStr === todayStr) {
       return "Today";
-    } else if (date.toDateString() === tomorrow.toDateString()) {
+    } else if (eventDateStr === tomorrowStr) {
       return "Tomorrow";
     } else {
       return date.toLocaleDateString('en-US', { 
@@ -145,7 +160,7 @@ const CalendarView = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
-      <ManagePeopleSheet onUpdate={loadEvents} />
+      <ManagePeopleSheet onUpdate={cleanupAndLoadEvents} />
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button
@@ -167,7 +182,7 @@ const CalendarView = () => {
             Upcoming Catch-Ups
           </h1>
           <p className="text-muted-foreground">
-            Your next 5 scheduled connections
+            Your next {events.length} scheduled connections
           </p>
         </div>
 
