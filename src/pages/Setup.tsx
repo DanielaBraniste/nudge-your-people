@@ -42,44 +42,60 @@ const Setup = () => {
     loadPeople();
   }, []);
 
-  // Request notification permission on mount
+  // Request notification permission once on mount
   useEffect(() => {
-    if (requestPermission) {
+    if (requestPermission && Notification.permission === 'default') {
       requestPermission();
     }
-  }, [requestPermission]);
+  }, []); // Empty dependency array - only run once
 
   // Clean up past notifications on mount
   useEffect(() => {
     const cleanupPastNotifications = () => {
-      const scheduledNotifications = JSON.parse(
-        localStorage.getItem('scheduledNotifications') || '{}'
-      );
-      const now = Date.now();
-      let updated = false;
+      try {
+        const scheduledNotifications = JSON.parse(
+          localStorage.getItem('scheduledNotifications') || '{}'
+        );
+        const storedPeople = localStorage.getItem('catchUpPeople');
+        
+        if (!storedPeople) return;
+        
+        const people: Person[] = JSON.parse(storedPeople);
+        const now = Date.now();
+        let needsUpdate = false;
 
-      Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
-        if (notif.scheduledTime < now && !notif.fired) {
-          // This notification is in the past, reschedule it
-          const storedPeople = localStorage.getItem('catchUpPeople');
-          if (storedPeople) {
-            const people: Person[] = JSON.parse(storedPeople);
+        Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+          if (notif.scheduledTime < now && !notif.fired) {
+            // Delete the old notification
+            delete scheduledNotifications[personId];
+            needsUpdate = true;
+            
+            // Find the person and reschedule
             const person = people.find(p => p.id === personId);
             if (person) {
-              scheduleNotification(person);
-              updated = true;
+              // Reschedule after a short delay
+              setTimeout(() => {
+                scheduleNotification(person);
+                // Trigger a refresh of the display
+                loadPeople();
+              }, 100);
             }
           }
-        }
-      });
+        });
 
-      if (updated) {
-        loadPeople(); // Refresh the display
+        if (needsUpdate) {
+          // Save the cleaned up notifications
+          localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+        }
+      } catch (error) {
+        console.error('Error cleaning up past notifications:', error);
       }
     };
 
-    cleanupPastNotifications();
-  }, [scheduleNotification]);
+    // Only run cleanup after a short delay to ensure everything is loaded
+    const cleanupTimer = setTimeout(cleanupPastNotifications, 500);
+    return () => clearTimeout(cleanupTimer);
+  }, []); // Empty dependency array - only run once on mount
 
   const loadPeople = () => {
     const storedPeople = localStorage.getItem("catchUpPeople");
