@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -12,14 +12,84 @@ interface Person {
   method: "call" | "text" | "dm" | "other";
 }
 
+// Store active timeouts
+const activeTimeouts: { [key: string]: NodeJS.Timeout } = {};
+
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+  // Check for pending notifications on mount and periodically
   useEffect(() => {
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
+
+    // Check immediately
+    checkAndFirePendingNotifications();
+
+    // Check every minute for notifications that should have fired
+    const interval = setInterval(checkAndFirePendingNotifications, 60000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const checkAndFirePendingNotifications = useCallback(() => {
+    const scheduledNotifications = JSON.parse(
+      localStorage.getItem('scheduledNotifications') || '{}'
+    );
+    const now = Date.now();
+
+    Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+      const scheduledTime = notif.scheduledTime;
+      
+      // If notification time has passed and hasn't been fired yet
+      if (scheduledTime <= now && !notif.fired) {
+        showNotification(notif);
+        
+        // Mark as fired
+        notif.fired = true;
+        scheduledNotifications[personId] = notif;
+        localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+        
+        // Reschedule next occurrence
+        const storedPeople = localStorage.getItem('catchUpPeople');
+        if (storedPeople) {
+          const people: Person[] = JSON.parse(storedPeople);
+          const person = people.find(p => p.id === personId);
+          if (person) {
+            // Wait a bit before scheduling the next one
+            setTimeout(() => scheduleNotification(person), 1000);
+          }
+        }
+      }
+    });
+  }, []);
+
+  const showNotification = (notif: any) => {
+    if (Notification.permission === 'granted') {
+      const notification = new Notification(`Time to catch up with ${notif.personName}!`, {
+        body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
+        icon: '/icon.png', // Add your icon path
+        badge: '/badge.png', // Add your badge path
+        tag: notif.personId,
+        requireInteraction: true,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+        // You could navigate to a specific page here
+      };
+
+      // Also show toast
+      toast({
+        title: `Time to catch up with ${notif.personName}!`,
+        description: `Don't forget to ${getMethodText(notif.method)} them`,
+        duration: 10000,
+      });
+    }
+  };
 
   const requestPermission = async () => {
     if (!('Notification' in window)) {
@@ -51,6 +121,7 @@ export const useNotifications = () => {
   };
 
   const getNextCatchUpTime = (person: Person, lastContactDate?: Date): Date => {
+    // Use current time in user's timezone
     const now = lastContactDate || new Date();
     let nextDate = new Date(now);
 
@@ -82,42 +153,39 @@ export const useNotifications = () => {
       );
       
       let attempts = 0;
-      const maxAttempts = 30; // Prevent infinite loop
+      const maxAttempts = 30;
       
       while (attempts < maxAttempts) {
         const dateStr = nextDate.toDateString();
         
-        // Count non-daily catch-ups on this date (excluding current person)
         const catchUpsOnDate = Object.values(scheduledNotifications).filter((notif: any) => {
-          if (notif.personId === person.id) return false; // Exclude current person
+          if (notif.personId === person.id) return false;
           
           const notifDate = new Date(notif.scheduledTime);
           const storedPeople = localStorage.getItem('catchUpPeople');
           if (storedPeople) {
             const people: Person[] = JSON.parse(storedPeople);
             const notifPerson = people.find(p => p.id === notif.personId);
-            if (notifPerson && notifPerson.frequency === 'daily') return false; // Exclude daily
+            if (notifPerson && notifPerson.frequency === 'daily') return false;
           }
           
           return notifDate.toDateString() === dateStr;
         }).length;
         
         if (catchUpsOnDate < 3) {
-          break; // Found a suitable day
+          break;
         }
         
-        // Move to next day
         nextDate.setDate(nextDate.getDate() + 1);
         attempts++;
       }
     }
 
-    // Set the time
+    // Set the time in local timezone
     if (person.timeType === 'fixed' && person.fixedTime) {
       const [hours, minutes] = person.fixedTime.split(':');
       nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
     } else {
-      // Random time within window
       const timeWindow = person.timeWindow || 'afternoon';
       let minHour, maxHour;
       
@@ -134,6 +202,9 @@ export const useNotifications = () => {
           minHour = 18;
           maxHour = 22;
           break;
+        default:
+          minHour = 13;
+          maxHour = 17;
       }
       
       const randomHour = Math.floor(Math.random() * (maxHour - minHour)) + minHour;
@@ -145,18 +216,19 @@ export const useNotifications = () => {
   };
 
   const scheduleNotification = (person: Person) => {
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') {
+      console.warn('Notification permission not granted');
+      return;
+    }
 
     const nextTime = getNextCatchUpTime(person);
     const now = new Date().getTime();
     const scheduledTime = nextTime.getTime();
     const delay = scheduledTime - now;
     
-    // Get user's timezone
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
-    // Store scheduled notification in localStorage
+    // Store scheduled notification
     const scheduledNotifications = JSON.parse(
       localStorage.getItem('scheduledNotifications') || '{}'
     );
@@ -167,38 +239,49 @@ export const useNotifications = () => {
       scheduledTime: scheduledTime,
       formattedTime: formattedTime,
       timezone: timezone,
+      fired: false,
     };
     localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
 
-    if (delay > 0) {
-      // Schedule via service worker if available
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SCHEDULE_NOTIFICATION',
-          data: {
-            id: person.id,
-            title: `Time to catch up with ${person.name}!`,
-            body: `Don't forget to ${getMethodText(person.method)} ${person.name}`,
-            scheduledTime: scheduledTime,
-          },
-        });
-      }
+    // Clear existing timeout for this person
+    if (activeTimeouts[person.id]) {
+      clearTimeout(activeTimeouts[person.id]);
+    }
+
+    // Schedule notification with setTimeout (max ~24.8 days due to setTimeout limit)
+    if (delay > 0 && delay < 2147483647) {
+      activeTimeouts[person.id] = setTimeout(() => {
+        showNotification(scheduledNotifications[person.id]);
+        
+        // Mark as fired
+        scheduledNotifications[person.id].fired = true;
+        localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+        
+        // Schedule next occurrence
+        setTimeout(() => scheduleNotification(person), 1000);
+        
+      }, delay);
+      
+      console.log(`Scheduled notification for ${person.name} at ${formattedTime} (in ${Math.round(delay/1000/60)} minutes)`);
+    } else if (delay > 0) {
+      // For very long delays, the checkAndFirePendingNotifications will catch it
+      console.log(`Notification for ${person.name} scheduled for ${formattedTime} (will be checked periodically)`);
     }
   };
 
   const cancelNotification = (personId: string) => {
+    // Clear timeout
+    if (activeTimeouts[personId]) {
+      clearTimeout(activeTimeouts[personId]);
+      delete activeTimeouts[personId];
+    }
+
+    // Remove from storage
     const scheduledNotifications = JSON.parse(
       localStorage.getItem('scheduledNotifications') || '{}'
     );
     delete scheduledNotifications[personId];
     localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
-
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'CANCEL_NOTIFICATION',
-        data: { id: personId },
-      });
-    }
   };
 
   const getMethodText = (method: string) => {
@@ -219,7 +302,6 @@ export const useNotifications = () => {
   };
 
   const confirmCatchUp = (personId: string) => {
-    // Get the person data
     const storedPeople = localStorage.getItem('catchUpPeople');
     if (!storedPeople) return;
     
@@ -227,10 +309,7 @@ export const useNotifications = () => {
     const person = people.find(p => p.id === personId);
     if (!person) return;
 
-    // Remove old notification
     cancelNotification(personId);
-
-    // Schedule next catch-up
     scheduleNotification(person);
 
     toast({
