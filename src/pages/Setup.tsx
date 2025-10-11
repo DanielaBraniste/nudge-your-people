@@ -389,46 +389,72 @@ const Setup = () => {
                     </div>
                   )}
                   
-                  <div className="space-y-2">
+<div className="space-y-2">
   <Label>Select Time</Label>
-  <div className="flex gap-2">
-    <Select
-      value={currentPerson.fixedTime.split(':')[0]}
-      onValueChange={(hour) => {
-        const currentMinute = currentPerson.fixedTime.split(':')[1];
-        setCurrentPerson({ ...currentPerson, fixedTime: `${hour}:${currentMinute}` });
-      }}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Hour" />
-      </SelectTrigger>
-      <SelectContent className="max-h-[300px]">
-        {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
-          <SelectItem key={hour} value={hour.toString().padStart(2, '0')}>
-            {hour.toString().padStart(2, '0')}:00
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+  <div className="flex gap-2 items-center">
+    <div className="flex-1">
+      <Input
+        type="number"
+        min="0"
+        max="23"
+        value={parseInt(currentPerson.fixedTime.split(':')[0])}
+        onChange={(e) => {
+          let hour = parseInt(e.target.value) || 0;
+          hour = Math.max(0, Math.min(23, hour)); // Clamp between 0-23
+          const currentMinute = currentPerson.fixedTime.split(':')[1];
+          setCurrentPerson({ 
+            ...currentPerson, 
+            fixedTime: `${hour.toString().padStart(2, '0')}:${currentMinute}` 
+          });
+        }}
+        onBlur={(e) => {
+          // Format on blur
+          let hour = parseInt(e.target.value) || 0;
+          hour = Math.max(0, Math.min(23, hour));
+          const currentMinute = currentPerson.fixedTime.split(':')[1];
+          setCurrentPerson({ 
+            ...currentPerson, 
+            fixedTime: `${hour.toString().padStart(2, '0')}:${currentMinute}` 
+          });
+        }}
+        placeholder="HH"
+        className="text-center text-lg font-semibold"
+      />
+      <p className="text-xs text-muted-foreground text-center mt-1">Hour</p>
+    </div>
     
-    <Select
-      value={currentPerson.fixedTime.split(':')[1]}
-      onValueChange={(minute) => {
-        const currentHour = currentPerson.fixedTime.split(':')[0];
-        setCurrentPerson({ ...currentPerson, fixedTime: `${currentHour}:${minute}` });
-      }}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Min" />
-      </SelectTrigger>
-      <SelectContent className="max-h-[300px]">
-        {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
-          <SelectItem key={minute} value={minute.toString().padStart(2, '0')}>
-            :{minute.toString().padStart(2, '0')}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <span className="text-2xl font-bold">:</span>
+    
+    <div className="flex-1">
+      <Input
+        type="number"
+        min="0"
+        max="59"
+        value={parseInt(currentPerson.fixedTime.split(':')[1])}
+        onChange={(e) => {
+          let minute = parseInt(e.target.value) || 0;
+          minute = Math.max(0, Math.min(59, minute)); // Clamp between 0-59
+          const currentHour = currentPerson.fixedTime.split(':')[0];
+          setCurrentPerson({ 
+            ...currentPerson, 
+            fixedTime: `${currentHour}:${minute.toString().padStart(2, '0')}` 
+          });
+        }}
+        onBlur={(e) => {
+          // Format on blur
+          let minute = parseInt(e.target.value) || 0;
+          minute = Math.max(0, Math.min(59, minute));
+          const currentHour = currentPerson.fixedTime.split(':')[0];
+          setCurrentPerson({ 
+            ...currentPerson, 
+            fixedTime: `${currentHour}:${minute.toString().padStart(2, '0')}` 
+          });
+        }}
+        placeholder="MM"
+        className="text-center text-lg font-semibold"
+      />
+      <p className="text-xs text-muted-foreground text-center mt-1">Minute</p>
+    </div>
   </div>
 </div>
                 </div>
