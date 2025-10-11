@@ -39,7 +39,16 @@ const Setup = () => {
   useEffect(() => {
     loadPeople();
   }, []);
+useEffect(() => {
+    requestPermission();
+  }, [requestPermission]);
 
+  const loadPeople = () => {
+    const storedPeople = localStorage.getItem("catchUpPeople");
+    if (storedPeople) {
+      setPeople(JSON.parse(storedPeople));
+    }
+  };
   const loadPeople = () => {
     const storedPeople = localStorage.getItem("catchUpPeople");
     if (storedPeople) {
