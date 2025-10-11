@@ -27,16 +27,59 @@ const Setup = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-const { scheduleNotification, cancelNotification, scheduleAllNotifications, requestPermission } = useNotifications();
-  useEffect(() => {
-  if (requestPermission) {
-    requestPermission();
-  }
-}, [requestPermission]);
+  const { scheduleNotification, cancelNotification, scheduleAllNotifications, requestPermission } = useNotifications();
 
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load people on mount
   useEffect(() => {
     loadPeople();
   }, []);
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if (requestPermission) {
+      requestPermission();
+    }
+  }, [requestPermission]);
+
+  // Clean up past notifications on mount
+  useEffect(() => {
+    const cleanupPastNotifications = () => {
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      const now = Date.now();
+      let updated = false;
+
+      Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+        if (notif.scheduledTime < now && !notif.fired) {
+          // This notification is in the past, reschedule it
+          const storedPeople = localStorage.getItem('catchUpPeople');
+          if (storedPeople) {
+            const people: Person[] = JSON.parse(storedPeople);
+            const person = people.find(p => p.id === personId);
+            if (person) {
+              scheduleNotification(person);
+              updated = true;
+            }
+          }
+        }
+      });
+
+      if (updated) {
+        loadPeople(); // Refresh the display
+      }
+    };
+
+    cleanupPastNotifications();
+  }, [scheduleNotification]);
 
   const loadPeople = () => {
     const storedPeople = localStorage.getItem("catchUpPeople");
@@ -44,6 +87,7 @@ const { scheduleNotification, cancelNotification, scheduleAllNotifications, requ
       setPeople(JSON.parse(storedPeople));
     }
   };
+
   const [currentPerson, setCurrentPerson] = useState({
     name: "",
     frequency: "weekly",
