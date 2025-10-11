@@ -18,6 +18,8 @@ interface Person {
   frequency: string;
   timeType: "fixed" | "random";
   fixedTime?: string;
+  fixedDay?: string;
+  fixedDayOfMonth?: number;
   timeWindow?: "morning" | "afternoon" | "evening";
   method: "call" | "text" | "dm" | "other";
 }
@@ -109,6 +111,8 @@ const Setup = () => {
     frequency: "weekly",
     timeType: "random" as "fixed" | "random",
     fixedTime: "12:00",
+    fixedDay: "monday",
+    fixedDayOfMonth: 1,
     timeWindow: "afternoon" as "morning" | "afternoon" | "evening",
     method: "call" as "call" | "text" | "dm" | "other",
   });
@@ -130,7 +134,15 @@ const Setup = () => {
       timeType: currentPerson.timeType,
       method: currentPerson.method,
       ...(currentPerson.timeType === "fixed" 
-        ? { fixedTime: currentPerson.fixedTime }
+        ? { 
+            fixedTime: currentPerson.fixedTime,
+            ...(currentPerson.frequency === "weekly" || currentPerson.frequency === "biweekly"
+              ? { fixedDay: currentPerson.fixedDay }
+              : currentPerson.frequency === "monthly"
+              ? { fixedDayOfMonth: currentPerson.fixedDayOfMonth }
+              : {}
+            )
+          }
         : { timeWindow: currentPerson.timeWindow }
       ),
     };
@@ -147,6 +159,8 @@ const Setup = () => {
       frequency: "weekly",
       timeType: "random",
       fixedTime: "12:00",
+      fixedDay: "monday",
+      fixedDayOfMonth: 1,
       timeWindow: "afternoon",
       method: "call",
     });
@@ -179,6 +193,37 @@ const Setup = () => {
     localStorage.setItem("catchUpPeople", JSON.stringify(people));
     navigate("/calendar");
   };
+
+  const shouldShowDayOfWeekSelector = () => {
+    return currentPerson.timeType === "fixed" && 
+           (currentPerson.frequency === "weekly" || 
+            currentPerson.frequency === "biweekly");
+  };
+
+  const shouldShowDayOfMonthSelector = () => {
+    return currentPerson.timeType === "fixed" && 
+           currentPerson.frequency === "monthly";
+  };
+
+  const getDisplayText = (person: Person) => {
+    if (person.timeType === "fixed") {
+      if (person.fixedDay) {
+        return `${person.fixedDay.charAt(0).toUpperCase() + person.fixedDay.slice(1)}s at ${person.fixedTime}`;
+      } else if (person.fixedDayOfMonth) {
+        const suffix = person.fixedDayOfMonth === 1 ? 'st' : 
+                       person.fixedDayOfMonth === 2 ? 'nd' : 
+                       person.fixedDayOfMonth === 3 ? 'rd' : 'th';
+        return `${person.fixedDayOfMonth}${suffix} of month at ${person.fixedTime}`;
+      } else {
+        return `At ${person.fixedTime}`;
+      }
+    } else {
+      return `${person.timeWindow!.charAt(0).toUpperCase() + person.timeWindow!.slice(1)}`;
+    }
+  };
+
+  // Generate day of month options (1-31)
+  const dayOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
@@ -274,7 +319,7 @@ const Setup = () => {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="fixed" id="fixed" />
                   <Label htmlFor="fixed" className="font-normal cursor-pointer">
-                    Fixed Time
+                    Fixed Day & Time
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -286,14 +331,74 @@ const Setup = () => {
               </RadioGroup>
 
               {currentPerson.timeType === "fixed" ? (
-                <div className="space-y-2 ml-6">
-                  <Label htmlFor="fixedTime">Select Time</Label>
-                  <Input
-                    id="fixedTime"
-                    type="time"
-                    value={currentPerson.fixedTime}
-                    onChange={(e) => setCurrentPerson({ ...currentPerson, fixedTime: e.target.value })}
-                  />
+                <div className="space-y-4 ml-6">
+                  {shouldShowDayOfWeekSelector() && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fixedDay">Day of Week</Label>
+                      <Select
+                        value={currentPerson.fixedDay}
+                        onValueChange={(value) =>
+                          setCurrentPerson({ ...currentPerson, fixedDay: value })
+                        }
+                      >
+                        <SelectTrigger id="fixedDay">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monday">Monday</SelectItem>
+                          <SelectItem value="tuesday">Tuesday</SelectItem>
+                          <SelectItem value="wednesday">Wednesday</SelectItem>
+                          <SelectItem value="thursday">Thursday</SelectItem>
+                          <SelectItem value="friday">Friday</SelectItem>
+                          <SelectItem value="saturday">Saturday</SelectItem>
+                          <SelectItem value="sunday">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {shouldShowDayOfMonthSelector() && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fixedDayOfMonth">Day of Month</Label>
+                      <Select
+                        value={currentPerson.fixedDayOfMonth.toString()}
+                        onValueChange={(value) =>
+                          setCurrentPerson({ ...currentPerson, fixedDayOfMonth: parseInt(value) })
+                        }
+                      >
+                        <SelectTrigger id="fixedDayOfMonth">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {dayOfMonthOptions.map((day) => {
+                            const suffix = day === 1 ? 'st' : 
+                                         day === 2 ? 'nd' : 
+                                         day === 3 ? 'rd' : 
+                                         day === 21 ? 'st' :
+                                         day === 22 ? 'nd' :
+                                         day === 23 ? 'rd' :
+                                         day === 31 ? 'st' : 'th';
+                            return (
+                              <SelectItem key={day} value={day.toString()}>
+                                {day}{suffix}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="fixedTime">Select Time</Label>
+                    <Input
+                      id="fixedTime"
+                      type="time"
+                      value={currentPerson.fixedTime}
+                      onChange={(e) => setCurrentPerson({ ...currentPerson, fixedTime: e.target.value })}
+                      className="text-lg"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2 ml-6">
@@ -347,10 +452,7 @@ const Setup = () => {
                       <p className="text-sm text-muted-foreground">
                         {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
                         {" • "}
-                        {person.timeType === "fixed" 
-                          ? `At ${person.fixedTime}`
-                          : `${person.timeWindow.charAt(0).toUpperCase() + person.timeWindow.slice(1)}`
-                        }
+                        {getDisplayText(person)}
                         {" • "}
                         {person.method === "call" ? "📞 Call" : 
                          person.method === "text" ? "💬 Text" :
