@@ -218,6 +218,27 @@ export const useNotifications = () => {
     people.forEach(person => scheduleNotification(person));
   };
 
+  const confirmCatchUp = (personId: string) => {
+    // Get the person data
+    const storedPeople = localStorage.getItem('catchUpPeople');
+    if (!storedPeople) return;
+    
+    const people: Person[] = JSON.parse(storedPeople);
+    const person = people.find(p => p.id === personId);
+    if (!person) return;
+
+    // Remove old notification
+    cancelNotification(personId);
+
+    // Schedule next catch-up
+    scheduleNotification(person);
+
+    toast({
+      title: "Catch-up confirmed! 🎉",
+      description: `Great job staying in touch with ${person.name}`,
+    });
+  };
+
   return {
     permission,
     requestPermission,
@@ -225,5 +246,6 @@ export const useNotifications = () => {
     cancelNotification,
     scheduleAllNotifications,
     getNextCatchUpTime,
+    confirmCatchUp,
   };
 };

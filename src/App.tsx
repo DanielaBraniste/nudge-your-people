@@ -8,6 +8,7 @@ import CalendarView from "./pages/CalendarView";
 import NotFound from "./pages/NotFound";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermission } from "./components/NotificationPermission";
+import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const App = () => (
       <Sonner />
       <InstallPrompt />
       <NotificationPermission />
+      <ConfirmCatchUpDialog />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />

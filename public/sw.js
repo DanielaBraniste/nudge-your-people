@@ -67,7 +67,7 @@ self.addEventListener('message', (event) => {
           badge: '/placeholder.svg',
           tag: id,
           requireInteraction: true,
-          data: { id },
+          data: { personId: id },
         });
         scheduledNotifications.delete(id);
       }, delay);
@@ -89,7 +89,26 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
+  // Extract person ID from notification data
+  const personId = event.notification.data?.personId;
+  
   event.waitUntil(
-    clients.openWindow('/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open
+      for (const client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          // Send message to existing window
+          client.postMessage({
+            type: 'CONFIRM_CATCHUP',
+            personId: personId
+          });
+          return client.focus();
+        }
+      }
+      // If no window is open, open a new one with the personId parameter
+      if (clients.openWindow) {
+        return clients.openWindow(`/?confirm=${personId}`);
+      }
+    })
   );
 });
