@@ -235,9 +235,9 @@ export const useNotifications = () => {
       nextDate.setHours(randomHour, randomMinute, 0, 0);
     }
 
-    // CRITICAL FIX: If the calculated time is in the past, move to next occurrence
-    const now = new Date();
-    if (nextDate.getTime() <= now.getTime()) {
+// CRITICAL FIX: If the calculated time is in the past, move to next occurrence
+    const currentTime = new Date();
+    if (nextDate.getTime() <= currentTime.getTime()) {
       // Time has already passed, calculate next occurrence
       switch (person.frequency) {
         case 'daily':
