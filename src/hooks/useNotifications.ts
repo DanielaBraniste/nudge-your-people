@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -14,38 +14,126 @@ interface Person {
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
+  const activeTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
+
+    // Check for pending notifications every minute
+    const checkInterval = setInterval(() => {
+      checkAndFirePendingNotifications();
+    }, 60000);
+
+    // Check immediately on mount
+    checkAndFirePendingNotifications();
+
+    return () => {
+      clearInterval(checkInterval);
+      // Clear all timeouts on unmount
+      Object.values(activeTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
+    };
   }, []);
 
-  const requestPermission = async () => {
-    if (!('Notification' in window)) {
-      toast({
-        title: "Not supported",
-        description: "This browser doesn't support notifications",
-        variant: "destructive",
+  const checkAndFirePendingNotifications = () => {
+    try {
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      const now = Date.now();
+
+      Object.entries(scheduledNotifications).forEach(([personId, notif]: [string, any]) => {
+        if (!notif) return;
+        
+        const scheduledTime = notif.scheduledTime;
+        
+        // If notification time has passed and hasn't been fired yet
+        if (scheduledTime <= now && !notif.fired) {
+          showNotification(notif);
+          
+          // Mark as fired
+          notif.fired = true;
+          scheduledNotifications[personId] = notif;
+          localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+          
+          // Reschedule next occurrence
+          const storedPeople = localStorage.getItem('catchUpPeople');
+          if (storedPeople) {
+            try {
+              const people: Person[] = JSON.parse(storedPeople);
+              const person = people.find(p => p.id === personId);
+              if (person) {
+                setTimeout(() => scheduleNotification(person), 2000);
+              }
+            } catch (e) {
+              console.error('Error rescheduling notification:', e);
+            }
+          }
+        }
       });
-      return false;
+    } catch (error) {
+      console.error('Error checking pending notifications:', error);
     }
+  };
 
-    const result = await Notification.requestPermission();
-    setPermission(result);
+  const showNotification = (notif: any) => {
+    try {
+      if (Notification.permission === 'granted') {
+        const notification = new Notification(`Time to catch up with ${notif.personName}!`, {
+          body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
+          tag: notif.personId,
+          requireInteraction: true,
+        });
 
-    if (result === 'granted') {
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+
+      // Also show toast
       toast({
-        title: "Notifications enabled!",
-        description: "You'll receive reminders for your catch-ups",
+        title: `Time to catch up with ${notif.personName}!`,
+        description: `Don't forget to ${getMethodText(notif.method)} them`,
+        duration: 10000,
       });
-      return true;
-    } else {
-      toast({
-        title: "Notifications blocked",
-        description: "You won't receive catch-up reminders",
-        variant: "destructive",
-      });
+    } catch (error) {
+      console.error('Error showing notification:', error);
+    }
+  };
+
+  const requestPermission = async () => {
+    try {
+      if (!('Notification' in window)) {
+        toast({
+          title: "Not supported",
+          description: "This browser doesn't support notifications",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const result = await Notification.requestPermission();
+      setPermission(result);
+
+      if (result === 'granted') {
+        toast({
+          title: "Notifications enabled!",
+          description: "You'll receive reminders for your catch-ups",
+        });
+        return true;
+      } else {
+        toast({
+          title: "Notifications blocked",
+          description: "You won't receive catch-up reminders. Enable them in your browser settings.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error requesting permission:', error);
       return false;
     }
   };
@@ -69,7 +157,6 @@ export const useNotifications = () => {
         nextDate.setMonth(nextDate.getMonth() + 1);
         break;
       case 'random':
-        // Random between 3-14 days
         const randomDays = Math.floor(Math.random() * 12) + 3;
         nextDate.setDate(nextDate.getDate() + randomDays);
         break;
@@ -77,38 +164,44 @@ export const useNotifications = () => {
 
     // For non-daily schedules, check if the day already has 3+ catch-ups
     if (person.frequency !== 'daily') {
-      const scheduledNotifications = JSON.parse(
-        localStorage.getItem('scheduledNotifications') || '{}'
-      );
-      
-      let attempts = 0;
-      const maxAttempts = 30; // Prevent infinite loop
-      
-      while (attempts < maxAttempts) {
-        const dateStr = nextDate.toDateString();
+      try {
+        const scheduledNotifications = JSON.parse(
+          localStorage.getItem('scheduledNotifications') || '{}'
+        );
         
-        // Count non-daily catch-ups on this date (excluding current person)
-        const catchUpsOnDate = Object.values(scheduledNotifications).filter((notif: any) => {
-          if (notif.personId === person.id) return false; // Exclude current person
+        let attempts = 0;
+        const maxAttempts = 30;
+        
+        while (attempts < maxAttempts) {
+          const dateStr = nextDate.toDateString();
           
-          const notifDate = new Date(notif.scheduledTime);
-          const storedPeople = localStorage.getItem('catchUpPeople');
-          if (storedPeople) {
-            const people: Person[] = JSON.parse(storedPeople);
-            const notifPerson = people.find(p => p.id === notif.personId);
-            if (notifPerson && notifPerson.frequency === 'daily') return false; // Exclude daily
+          const catchUpsOnDate = Object.values(scheduledNotifications).filter((notif: any) => {
+            if (notif.personId === person.id) return false;
+            
+            const notifDate = new Date(notif.scheduledTime);
+            const storedPeople = localStorage.getItem('catchUpPeople');
+            if (storedPeople) {
+              try {
+                const people: Person[] = JSON.parse(storedPeople);
+                const notifPerson = people.find(p => p.id === notif.personId);
+                if (notifPerson && notifPerson.frequency === 'daily') return false;
+              } catch (e) {
+                return false;
+              }
+            }
+            
+            return notifDate.toDateString() === dateStr;
+          }).length;
+          
+          if (catchUpsOnDate < 3) {
+            break;
           }
           
-          return notifDate.toDateString() === dateStr;
-        }).length;
-        
-        if (catchUpsOnDate < 3) {
-          break; // Found a suitable day
+          nextDate.setDate(nextDate.getDate() + 1);
+          attempts++;
         }
-        
-        // Move to next day
-        nextDate.setDate(nextDate.getDate() + 1);
-        attempts++;
+      } catch (error) {
+        console.error('Error checking date availability:', error);
       }
     }
 
@@ -117,7 +210,6 @@ export const useNotifications = () => {
       const [hours, minutes] = person.fixedTime.split(':');
       nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
     } else {
-      // Random time within window
       const timeWindow = person.timeWindow || 'afternoon';
       let minHour, maxHour;
       
@@ -134,6 +226,9 @@ export const useNotifications = () => {
           minHour = 18;
           maxHour = 22;
           break;
+        default:
+          minHour = 13;
+          maxHour = 17;
       }
       
       const randomHour = Math.floor(Math.random() * (maxHour - minHour)) + minHour;
@@ -145,59 +240,77 @@ export const useNotifications = () => {
   };
 
   const scheduleNotification = (person: Person) => {
-    if (permission !== 'granted') return;
+    try {
+      const nextTime = getNextCatchUpTime(person);
+      const now = new Date().getTime();
+      const scheduledTime = nextTime.getTime();
+      const delay = scheduledTime - now;
+      
+      const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
-    const nextTime = getNextCatchUpTime(person);
-    const now = new Date().getTime();
-    const scheduledTime = nextTime.getTime();
-    const delay = scheduledTime - now;
-    
-    // Get user's timezone
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
+      // Store scheduled notification
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      scheduledNotifications[person.id] = {
+        personId: person.id,
+        personName: person.name,
+        method: person.method,
+        scheduledTime: scheduledTime,
+        formattedTime: formattedTime,
+        timezone: timezone,
+        fired: false,
+      };
+      localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
 
-    // Store scheduled notification in localStorage
-    const scheduledNotifications = JSON.parse(
-      localStorage.getItem('scheduledNotifications') || '{}'
-    );
-    scheduledNotifications[person.id] = {
-      personId: person.id,
-      personName: person.name,
-      method: person.method,
-      scheduledTime: scheduledTime,
-      formattedTime: formattedTime,
-      timezone: timezone,
-    };
-    localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
-
-    if (delay > 0) {
-      // Schedule via service worker if available
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SCHEDULE_NOTIFICATION',
-          data: {
-            id: person.id,
-            title: `Time to catch up with ${person.name}!`,
-            body: `Don't forget to ${getMethodText(person.method)} ${person.name}`,
-            scheduledTime: scheduledTime,
-          },
-        });
+      // Clear existing timeout for this person
+      if (activeTimeoutsRef.current[person.id]) {
+        clearTimeout(activeTimeoutsRef.current[person.id]);
+        delete activeTimeoutsRef.current[person.id];
       }
+
+      // Schedule notification with setTimeout (max ~24.8 days due to setTimeout limit)
+      if (delay > 0 && delay < 2147483647) {
+        activeTimeoutsRef.current[person.id] = setTimeout(() => {
+          const currentNotifications = JSON.parse(
+            localStorage.getItem('scheduledNotifications') || '{}'
+          );
+          
+          if (currentNotifications[person.id]) {
+            showNotification(currentNotifications[person.id]);
+            
+            // Mark as fired
+            currentNotifications[person.id].fired = true;
+            localStorage.setItem('scheduledNotifications', JSON.stringify(currentNotifications));
+            
+            // Schedule next occurrence
+            setTimeout(() => scheduleNotification(person), 2000);
+          }
+        }, delay);
+        
+        console.log(`Scheduled notification for ${person.name} at ${formattedTime} (in ${Math.round(delay/1000/60)} minutes)`);
+      }
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
     }
   };
 
   const cancelNotification = (personId: string) => {
-    const scheduledNotifications = JSON.parse(
-      localStorage.getItem('scheduledNotifications') || '{}'
-    );
-    delete scheduledNotifications[personId];
-    localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+    try {
+      // Clear timeout
+      if (activeTimeoutsRef.current[personId]) {
+        clearTimeout(activeTimeoutsRef.current[personId]);
+        delete activeTimeoutsRef.current[personId];
+      }
 
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'CANCEL_NOTIFICATION',
-        data: { id: personId },
-      });
+      // Remove from storage
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      delete scheduledNotifications[personId];
+      localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+    } catch (error) {
+      console.error('Error canceling notification:', error);
     }
   };
 
@@ -219,24 +332,24 @@ export const useNotifications = () => {
   };
 
   const confirmCatchUp = (personId: string) => {
-    // Get the person data
-    const storedPeople = localStorage.getItem('catchUpPeople');
-    if (!storedPeople) return;
-    
-    const people: Person[] = JSON.parse(storedPeople);
-    const person = people.find(p => p.id === personId);
-    if (!person) return;
+    try {
+      const storedPeople = localStorage.getItem('catchUpPeople');
+      if (!storedPeople) return;
+      
+      const people: Person[] = JSON.parse(storedPeople);
+      const person = people.find(p => p.id === personId);
+      if (!person) return;
 
-    // Remove old notification
-    cancelNotification(personId);
+      cancelNotification(personId);
+      scheduleNotification(person);
 
-    // Schedule next catch-up
-    scheduleNotification(person);
-
-    toast({
-      title: "Catch-up confirmed! 🎉",
-      description: `Great job staying in touch with ${person.name}`,
-    });
+      toast({
+        title: "Catch-up confirmed! 🎉",
+        description: `Great job staying in touch with ${person.name}`,
+      });
+    } catch (error) {
+      console.error('Error confirming catch-up:', error);
+    }
   };
 
   return {
