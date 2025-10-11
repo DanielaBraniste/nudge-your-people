@@ -390,15 +390,47 @@ const Setup = () => {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="fixedTime">Select Time</Label>
-                    <Input
-                      id="fixedTime"
-                      type="time"
-                      value={currentPerson.fixedTime}
-                      onChange={(e) => setCurrentPerson({ ...currentPerson, fixedTime: e.target.value })}
-                      className="text-lg"
-                    />
-                  </div>
+  <Label>Select Time</Label>
+  <div className="flex gap-2">
+    <Select
+      value={currentPerson.fixedTime.split(':')[0]}
+      onValueChange={(hour) => {
+        const currentMinute = currentPerson.fixedTime.split(':')[1];
+        setCurrentPerson({ ...currentPerson, fixedTime: `${hour}:${currentMinute}` });
+      }}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Hour" />
+      </SelectTrigger>
+      <SelectContent className="max-h-[300px]">
+        {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+          <SelectItem key={hour} value={hour.toString().padStart(2, '0')}>
+            {hour.toString().padStart(2, '0')}:00
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+    
+    <Select
+      value={currentPerson.fixedTime.split(':')[1]}
+      onValueChange={(minute) => {
+        const currentHour = currentPerson.fixedTime.split(':')[0];
+        setCurrentPerson({ ...currentPerson, fixedTime: `${currentHour}:${minute}` });
+      }}
+    >
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Min" />
+      </SelectTrigger>
+      <SelectContent className="max-h-[300px]">
+        {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+          <SelectItem key={minute} value={minute.toString().padStart(2, '0')}>
+            :{minute.toString().padStart(2, '0')}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+</div>
                 </div>
               ) : (
                 <div className="space-y-2 ml-6">
