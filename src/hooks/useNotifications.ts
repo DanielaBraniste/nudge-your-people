@@ -140,18 +140,19 @@ export const useNotifications = () => {
     }
   };
 
-  const getDayOfWeekNumber = (dayName: string): number => {
-    const days: { [key: string]: number } = {
-      'sunday': 0,
-      'monday': 1,
-      'tuesday': 2,
-      'wednesday': 3,
-      'thursday': 4,
-      'friday': 5,
-      'saturday': 6
-    };
-    return days[dayName.toLowerCase()] || 1; // Default to Monday if not found
+const getDayOfWeekNumber = (dayName: string): number => {
+  const days: { [key: string]: number } = {
+    'sunday': 0,
+    'monday': 1,
+    'tuesday': 2,
+    'wednesday': 3,
+    'thursday': 4,
+    'friday': 5,
+    'saturday': 6
   };
+  const key = dayName.toLowerCase();
+  return key in days ? days[key] : 1; // Use 'in' operator instead of || to handle 0
+};
 
   const getNextOccurrenceOfDay = (targetDay: number, targetTime: string, weeksToAdd: number = 1): Date => {
     const now = new Date();
