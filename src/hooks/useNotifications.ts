@@ -165,7 +165,7 @@ export const useNotifications = () => {
       targetDateTime.setHours(targetHours, targetMinutes, 0, 0);
       
       // If the target time has already passed today, schedule for next occurrence
-      if (now >= targetDateTime) {
+      if (now.getTime() >= targetDateTime.getTime()) {
         daysUntilTarget = 7 * weeksToAdd;
       }
       // Otherwise, schedule for today (daysUntilTarget stays 0)
@@ -202,17 +202,31 @@ export const useNotifications = () => {
     const now = lastContactDate || new Date();
     let nextDate = new Date(now);
 
-    // Handle fixed day scheduling for weekly/biweekly
+    // Handle fixed day scheduling for weekly/biweekly - WITH TIME CHECK
     if (person.timeType === 'fixed' && person.fixedDay && 
         (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
       const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
       const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
+      
+      // Get next occurrence of the day, considering the time
       nextDate = getNextOccurrenceOfDay(targetDayNumber, person.fixedTime || '12:00', weeksToAdd);
+      
+      // Set the time immediately after getting the day
+      if (person.fixedTime) {
+        const [hours, minutes] = person.fixedTime.split(':');
+        nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      }
     }
     // Handle fixed day of month for monthly
     else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
              person.frequency === 'monthly') {
       nextDate = getNextOccurrenceOfDayOfMonth(person.fixedDayOfMonth);
+      
+      // Set the time
+      if (person.timeType === 'fixed' && person.fixedTime) {
+        const [hours, minutes] = person.fixedTime.split(':');
+        nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      }
     }
     // Handle other frequency patterns
     else {
@@ -233,6 +247,37 @@ export const useNotifications = () => {
           const randomDays = Math.floor(Math.random() * 12) + 3;
           nextDate.setDate(nextDate.getDate() + randomDays);
           break;
+      }
+      
+      // Set the time for non-fixed-day schedules
+      if (person.timeType === 'fixed' && person.fixedTime) {
+        const [hours, minutes] = person.fixedTime.split(':');
+        nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      } else {
+        const timeWindow = person.timeWindow || 'afternoon';
+        let minHour, maxHour;
+        
+        switch (timeWindow) {
+          case 'morning':
+            minHour = 7;
+            maxHour = 11;
+            break;
+          case 'afternoon':
+            minHour = 13;
+            maxHour = 17;
+            break;
+          case 'evening':
+            minHour = 18;
+            maxHour = 22;
+            break;
+          default:
+            minHour = 13;
+            maxHour = 17;
+        }
+        
+        const randomHour = Math.floor(Math.random() * (maxHour - minHour)) + minHour;
+        const randomMinute = Math.floor(Math.random() * 60);
+        nextDate.setHours(randomHour, randomMinute, 0, 0);
       }
     }
 
@@ -290,89 +335,6 @@ export const useNotifications = () => {
       }
     }
 
-    // Set the time
-    if (person.timeType === 'fixed' && person.fixedTime) {
-      const [hours, minutes] = person.fixedTime.split(':');
-      nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    } else {
-      const timeWindow = person.timeWindow || 'afternoon';
-      let minHour, maxHour;
-      
-      switch (timeWindow) {
-        case 'morning':
-          minHour = 7;
-          maxHour = 11;
-          break;
-        case 'afternoon':
-          minHour = 13;
-          maxHour = 17;
-          break;
-        case 'evening':
-          minHour = 18;
-          maxHour = 22;
-          break;
-        default:
-          minHour = 13;
-          maxHour = 17;
-      }
-      
-      const randomHour = Math.floor(Math.random() * (maxHour - minHour)) + minHour;
-      const randomMinute = Math.floor(Math.random() * 60);
-      nextDate.setHours(randomHour, randomMinute, 0, 0);
-    }
-
-    // CRITICAL FIX: If the calculated time is in the past, move to next occurrence
-    const currentTime = new Date();
-    if (nextDate.getTime() <= currentTime.getTime()) {
-      // Time has already passed, calculate next occurrence
-      if (person.timeType === 'fixed' && person.fixedDay && 
-          (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
-        const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
-        const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
-        nextDate = getNextOccurrenceOfDay(targetDayNumber, person.fixedTime || '12:00', weeksToAdd);
-        
-        // Re-set the time
-        if (person.fixedTime) {
-          const [hours, minutes] = person.fixedTime.split(':');
-          nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        }
-      } else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
-                 person.frequency === 'monthly') {
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        nextDate.setDate(person.fixedDayOfMonth);
-        
-        // Handle months with fewer days
-        if (nextDate.getDate() !== person.fixedDayOfMonth) {
-          nextDate = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0); // Last day of month
-        }
-        
-        // Re-set the time
-        if (person.fixedTime) {
-          const [hours, minutes] = person.fixedTime.split(':');
-          nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        }
-      } else {
-        switch (person.frequency) {
-          case 'daily':
-            nextDate.setDate(nextDate.getDate() + 1);
-            break;
-          case 'weekly':
-            nextDate.setDate(nextDate.getDate() + 7);
-            break;
-          case 'biweekly':
-            nextDate.setDate(nextDate.getDate() + 14);
-            break;
-          case 'monthly':
-            nextDate.setMonth(nextDate.getMonth() + 1);
-            break;
-          case 'random':
-            const randomDays = Math.floor(Math.random() * 12) + 3;
-            nextDate.setDate(nextDate.getDate() + randomDays);
-            break;
-        }
-      }
-    }
-
     return nextDate;
   };
 
@@ -382,6 +344,10 @@ export const useNotifications = () => {
       const now = new Date().getTime();
       const scheduledTime = nextTime.getTime();
       const delay = scheduledTime - now;
+      
+      console.log(`DEBUG: Person: ${person.name}, Day: ${person.fixedDay}, Time: ${person.fixedTime}`);
+      console.log(`DEBUG: Next scheduled date: ${nextTime.toString()}`);
+      console.log(`DEBUG: Delay in minutes: ${Math.round(delay/1000/60)}`);
       
       const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
