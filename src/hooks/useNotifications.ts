@@ -153,12 +153,23 @@ export const useNotifications = () => {
     return days[dayName.toLowerCase()] || 1; // Default to Monday if not found
   };
 
-  const getNextOccurrenceOfDay = (targetDay: number, weeksToAdd: number = 1): Date => {
+  const getNextOccurrenceOfDay = (targetDay: number, targetTime: string, weeksToAdd: number = 1): Date => {
     const now = new Date();
     const currentDay = now.getDay();
     let daysUntilTarget = targetDay - currentDay;
     
-    if (daysUntilTarget < 0) {
+    // If it's the same day, check if the target time has already passed
+    if (daysUntilTarget === 0 && targetTime) {
+      const [targetHours, targetMinutes] = targetTime.split(':').map(Number);
+      const targetDateTime = new Date();
+      targetDateTime.setHours(targetHours, targetMinutes, 0, 0);
+      
+      // If the target time has already passed today, schedule for next occurrence
+      if (now >= targetDateTime) {
+        daysUntilTarget = 7 * weeksToAdd;
+      }
+      // Otherwise, schedule for today (daysUntilTarget stays 0)
+    } else if (daysUntilTarget < 0) {
       daysUntilTarget += 7 * weeksToAdd;
     }
     
@@ -196,7 +207,7 @@ export const useNotifications = () => {
         (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
       const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
       const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
-      nextDate = getNextOccurrenceOfDay(targetDayNumber, weeksToAdd);
+      nextDate = getNextOccurrenceOfDay(targetDayNumber, person.fixedTime || '12:00', weeksToAdd);
     }
     // Handle fixed day of month for monthly
     else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
@@ -318,7 +329,7 @@ export const useNotifications = () => {
           (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
         const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
         const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
-        nextDate = getNextOccurrenceOfDay(targetDayNumber, weeksToAdd);
+        nextDate = getNextOccurrenceOfDay(targetDayNumber, person.fixedTime || '12:00', weeksToAdd);
         
         // Re-set the time
         if (person.fixedTime) {
