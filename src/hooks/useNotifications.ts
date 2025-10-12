@@ -79,32 +79,68 @@ export const useNotifications = () => {
       console.error('Error checking pending notifications:', error);
     }
   };
+const showNotification = async (notif: any) => {
+  try {
+    // Always show toast in the app
+    toast({
+      title: `Time to catch up with ${notif.personName}!`,
+      description: `Don't forget to ${getMethodText(notif.method)} them`,
+      duration: 10000,
+    });
 
-  const showNotification = (notif: any) => {
-    try {
-      if (Notification.permission === 'granted') {
-        const notification = new Notification(`Time to catch up with ${notif.personName}!`, {
+    // For PWA notifications, use Service Worker if available
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        
+        await registration.showNotification(`Time to catch up with ${notif.personName}!`, {
           body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
+          icon: '/icon-192x192.png', // Update this path to match your icon
+          badge: '/badge-72x72.png', // Optional badge icon
           tag: notif.personId,
           requireInteraction: true,
+          vibrate: [200, 100, 200],
+          data: {
+            personId: notif.personId,
+            personName: notif.personName,
+            url: window.location.origin
+          }
         });
+      } catch (swError) {
+        console.log('Service Worker notification failed, falling back:', swError);
+        
+        // Fallback to regular notification
+        if (Notification.permission === 'granted') {
+          const notification = new Notification(`Time to catch up with ${notif.personName}!`, {
+            body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
+            tag: notif.personId,
+            requireInteraction: true,
+          });
 
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+        }
       }
-
-      // Also show toast
-      toast({
-        title: `Time to catch up with ${notif.personName}!`,
-        description: `Don't forget to ${getMethodText(notif.method)} them`,
-        duration: 10000,
+    } else if (Notification.permission === 'granted') {
+      // No service worker, use regular notification
+      const notification = new Notification(`Time to catch up with ${notif.personName}!`, {
+        body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
+        tag: notif.personId,
+        requireInteraction: true,
       });
-    } catch (error) {
-      console.error('Error showing notification:', error);
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
     }
-  };
+  } catch (error) {
+    console.error('Error showing notification:', error);
+  }
+};
+
 
   const requestPermission = async () => {
     try {
