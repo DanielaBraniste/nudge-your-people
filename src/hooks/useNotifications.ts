@@ -158,23 +158,33 @@ export const useNotifications = () => {
     const currentDay = now.getDay();
     let daysUntilTarget = targetDay - currentDay;
     
+    console.log(`getNextOccurrenceOfDay - currentDay: ${currentDay}, targetDay: ${targetDay}, daysUntilTarget: ${daysUntilTarget}`);
+    
     // If it's the same day, check if the target time has already passed
     if (daysUntilTarget === 0 && targetTime) {
       const [targetHours, targetMinutes] = targetTime.split(':').map(Number);
       const targetDateTime = new Date();
       targetDateTime.setHours(targetHours, targetMinutes, 0, 0);
       
+      console.log(`Same day detected. now: ${now.getTime()}, targetDateTime: ${targetDateTime.getTime()}`);
+      console.log(`now >= targetDateTime: ${now.getTime() >= targetDateTime.getTime()}`);
+      
       // If the target time has already passed today, schedule for next occurrence
       if (now.getTime() >= targetDateTime.getTime()) {
         daysUntilTarget = 7 * weeksToAdd;
+        console.log(`Time has passed, adding ${7 * weeksToAdd} days`);
+      } else {
+        console.log(`Time hasn't passed, keeping today (daysUntilTarget = 0)`);
       }
       // Otherwise, schedule for today (daysUntilTarget stays 0)
     } else if (daysUntilTarget < 0) {
       daysUntilTarget += 7 * weeksToAdd;
+      console.log(`Target day in past, adding ${7 * weeksToAdd} days`);
     }
     
     const nextDate = new Date(now);
     nextDate.setDate(now.getDate() + daysUntilTarget);
+    console.log(`getNextOccurrenceOfDay returning: ${nextDate.toString()}, daysUntilTarget: ${daysUntilTarget}`);
     return nextDate;
   };
 
@@ -202,25 +212,41 @@ export const useNotifications = () => {
     const now = lastContactDate || new Date();
     let nextDate = new Date(now);
 
+    console.log(`=== getNextCatchUpTime START for ${person.name} ===`);
+    console.log(`Current time: ${now.toString()}`);
+
     // Handle fixed day scheduling for weekly/biweekly - WITH TIME CHECK
     if (person.timeType === 'fixed' && person.fixedDay && 
         (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
       const targetDayNumber = getDayOfWeekNumber(person.fixedDay);
       const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
       
+      console.log(`Fixed day/time scheduling: day=${person.fixedDay} (${targetDayNumber}), time=${person.fixedTime}`);
+      
       // Get next occurrence of the day, considering the time
       nextDate = getNextOccurrenceOfDay(targetDayNumber, person.fixedTime || '12:00', weeksToAdd);
+      
+      console.log(`After getNextOccurrenceOfDay: ${nextDate.toString()}`);
       
       // Set the time immediately after getting the day
       if (person.fixedTime) {
         const [hours, minutes] = person.fixedTime.split(':');
         nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        console.log(`After setHours: ${nextDate.toString()}`);
       }
       
       // If this is scheduled for today and time hasn't passed, return immediately
-      // This prevents the 3+ catch-ups check from moving it to tomorrow
-      if (nextDate.toDateString() === now.toDateString() && nextDate.getTime() > now.getTime()) {
+      const isSameDay = nextDate.toDateString() === now.toDateString();
+      const isInFuture = nextDate.getTime() > now.getTime();
+      console.log(`Same day check: ${isSameDay}, In future: ${isInFuture}`);
+      console.log(`nextDate.toDateString(): ${nextDate.toDateString()}`);
+      console.log(`now.toDateString(): ${now.toDateString()}`);
+      
+      if (isSameDay && isInFuture) {
+        console.log(`Early return - same day and in future`);
         return nextDate;
+      } else {
+        console.log(`NOT returning early - will continue to 3+ check`);
       }
     }
     // Handle fixed day of month for monthly
@@ -290,6 +316,7 @@ export const useNotifications = () => {
     // For non-daily schedules, check if the day already has 3+ catch-ups
     // Skip this check if we already determined this is same-day scheduling above
     if (person.frequency !== 'daily' && !(nextDate.toDateString() === now.toDateString() && nextDate.getTime() > now.getTime())) {
+      console.log(`Entering 3+ catchups check...`);
       try {
         const scheduledNotifications = JSON.parse(
           localStorage.getItem('scheduledNotifications') || '{}'
@@ -319,9 +346,14 @@ export const useNotifications = () => {
             return notifDate.toDateString() === dateStr;
           }).length;
           
+          console.log(`Attempt ${attempts}: ${dateStr} has ${catchUpsOnDate} catch-ups`);
+          
           if (catchUpsOnDate < 3) {
+            console.log(`Found available slot on ${dateStr}`);
             break;
           }
+          
+          console.log(`Too many catch-ups on ${dateStr}, moving to next occurrence`);
           
           // Move to next occurrence
           if (person.timeType === 'fixed' && person.fixedDay && 
@@ -350,8 +382,11 @@ export const useNotifications = () => {
       } catch (error) {
         console.error('Error checking date availability:', error);
       }
+    } else {
+      console.log(`Skipping 3+ catchups check`);
     }
 
+    console.log(`=== getNextCatchUpTime END: returning ${nextDate.toString()} ===`);
     return nextDate;
   };
 
