@@ -63,11 +63,15 @@ self.addEventListener('message', (event) => {
       const timeoutId = setTimeout(() => {
         self.registration.showNotification(title, {
           body: body,
-          icon: '/placeholder.svg',
-          badge: '/placeholder.svg',
+          icon: '/icon-192x192.png', // Update to your actual icon path
+          badge: '/badge-72x72.png', // Update to your actual badge path
           tag: id,
           requireInteraction: true,
-          data: { personId: id },
+          vibrate: [200, 100, 200],
+          data: { 
+            personId: id,
+            url: self.registration.scope 
+          },
         });
         scheduledNotifications.delete(id);
       }, delay);
@@ -89,25 +93,31 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  // Extract person ID from notification data
+  // Extract data from notification
   const personId = event.notification.data?.personId;
+  const url = event.notification.data?.url || self.registration.scope;
   
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    }).then((clientList) => {
       // Check if there's already a window open
       for (const client of clientList) {
-        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+        if (client.url.indexOf(self.registration.scope) !== -1 && 'focus' in client) {
           // Send message to existing window
-          client.postMessage({
-            type: 'CONFIRM_CATCHUP',
-            personId: personId
-          });
+          if (personId) {
+            client.postMessage({
+              type: 'CONFIRM_CATCHUP',
+              personId: personId
+            });
+          }
           return client.focus();
         }
       }
-      // If no window is open, open a new one with the personId parameter
+      // If no window is open, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(`/?confirm=${personId}`);
+        return clients.openWindow(personId ? `${url}?confirm=${personId}` : url);
       }
     })
   );
