@@ -158,7 +158,7 @@ export const useNotifications = () => {
     const currentDay = now.getDay();
     let daysUntilTarget = targetDay - currentDay;
     
-    if (daysUntilTarget <= 0) {
+    if (daysUntilTarget < 0) {
       daysUntilTarget += 7 * weeksToAdd;
     }
     
