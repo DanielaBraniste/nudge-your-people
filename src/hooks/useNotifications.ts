@@ -216,6 +216,12 @@ export const useNotifications = () => {
         const [hours, minutes] = person.fixedTime.split(':');
         nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       }
+      
+      // If this is scheduled for today and time hasn't passed, return immediately
+      // This prevents the 3+ catch-ups check from moving it to tomorrow
+      if (nextDate.toDateString() === now.toDateString() && nextDate.getTime() > now.getTime()) {
+        return nextDate;
+      }
     }
     // Handle fixed day of month for monthly
     else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
@@ -282,7 +288,8 @@ export const useNotifications = () => {
     }
 
     // For non-daily schedules, check if the day already has 3+ catch-ups
-    if (person.frequency !== 'daily') {
+    // Skip this check if we already determined this is same-day scheduling above
+    if (person.frequency !== 'daily' && !(nextDate.toDateString() === now.toDateString() && nextDate.getTime() > now.getTime())) {
       try {
         const scheduledNotifications = JSON.parse(
           localStorage.getItem('scheduledNotifications') || '{}'
@@ -321,9 +328,19 @@ export const useNotifications = () => {
               (person.frequency === 'weekly' || person.frequency === 'biweekly')) {
             const weeksToAdd = person.frequency === 'biweekly' ? 2 : 1;
             nextDate.setDate(nextDate.getDate() + (7 * weeksToAdd));
+            // Re-set the time after moving the date
+            if (person.fixedTime) {
+              const [hours, minutes] = person.fixedTime.split(':');
+              nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            }
           } else if (person.timeType === 'fixed' && person.fixedDayOfMonth && 
                      person.frequency === 'monthly') {
             nextDate.setMonth(nextDate.getMonth() + 1);
+            // Re-set the time after moving the date
+            if (person.fixedTime) {
+              const [hours, minutes] = person.fixedTime.split(':');
+              nextDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            }
           } else {
             nextDate.setDate(nextDate.getDate() + 1);
           }
