@@ -230,12 +230,12 @@ const Setup = () => {
   const dayOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2 animate-fade-in">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Calendar className="w-8 h-8 text-purple-600" />
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Catch-Up Reminder
             </h1>
           </div>
@@ -291,11 +291,8 @@ const Setup = () => {
                   </div>
                 );
               })}
-              <Button 
-                onClick={handleViewCalendar} 
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-              >
-                <Calendar className="w-4 h-4 mr-2" />
+             <Button onClick={handleViewCalendar} className="w-full mt-6" size="lg" variant="default">
+                <Calendar className="mr-2 h-4 w-4" />
                 View Calendar
               </Button>
             </CardContent>
