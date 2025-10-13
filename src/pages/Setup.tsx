@@ -234,7 +234,7 @@ const Setup = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2 animate-fade-in">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Calendar className="w-8 h-8 text-purple-600" />
+            <Calendar className="w-8 h-8 text-muted-foreground/80" />
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Catch-Up Reminder
             </h1>
