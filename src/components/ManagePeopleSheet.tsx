@@ -94,7 +94,7 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="fixed top-6 right-4 z-50 shadow-lg">
+        <Button variant="outline" size="icon" className="fixed top-10 right-4 z-50 shadow-lg">
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
