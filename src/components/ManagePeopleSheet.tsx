@@ -94,13 +94,13 @@ const ManagePeopleSheet = ({ onUpdate }: ManagePeopleSheetProps) => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="fixed top-15 right-4 z-50 shadow-lg">
+        <Button variant="outline" size="icon" className="fixed top-10 right-4 z-50 shadow-lg">
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Manage Your Catch-Ups</SheetTitle>
+          <SheetTitle>manage your catch-ups</SheetTitle>
           <SheetDescription>
             View, edit, or delete your scheduled catch-ups
           </SheetDescription>
