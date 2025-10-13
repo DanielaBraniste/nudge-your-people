@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermission } from "./components/NotificationPermission";
 import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
+import { AnalyticsForm } from "./components/AnalyticsForm";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ const App = () => (
       <InstallPrompt />
       <NotificationPermission />
       <ConfirmCatchUpDialog />
+      <AnalyticsForm />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />
