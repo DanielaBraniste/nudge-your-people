@@ -20,7 +20,8 @@ export const InstallPrompt = () => {
       // Check if user has dismissed the prompt before
       const dismissed = localStorage.getItem('pwa-install-dismissed');
       if (!dismissed) {
-        setShowPrompt(true);
+        // Delay showing the install prompt by 8 seconds
+        setTimeout(() => setShowPrompt(true), 8000);
       }
     };
 
