@@ -12,8 +12,8 @@ export const NotificationPermission = () => {
     // Show prompt if permission is default and not dismissed
     const dismissed = localStorage.getItem('notification-permission-dismissed');
     if (permission === 'default' && !dismissed) {
-      // Delay showing to not overwhelm user
-      const timer = setTimeout(() => setShowPrompt(true), 2000);
+      // Delay showing to not overwhelm user (6 seconds)
+      const timer = setTimeout(() => setShowPrompt(true), 6000);
       return () => clearTimeout(timer);
     }
   }, [permission]);
