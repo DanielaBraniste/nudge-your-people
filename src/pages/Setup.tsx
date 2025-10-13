@@ -239,10 +239,10 @@ const Setup = () => {
               Catch-Up Reminder
             </h1>
           </div>
-          <p className="text-gray-600 text-lg">
+          <p className="text-muted-foreground text-lg">
             Never miss an opportunity to connect with the people who matter
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Globe className="w-4 h-4" />
             {timezone} • {format(currentTime, 'PPp')}
           </div>
@@ -276,7 +276,7 @@ const Setup = () => {
                          person.method === "dm" ? "📱 DM" : "✨ Other"}
                       </p>
                       {notification && (
-                        <p className="text-xs text-purple-600 mt-1">
+                        <p className="text-xs text-muted-foreground/80">
                           Next reminder: {notification.formattedTime}
                         </p>
                       )}
@@ -535,11 +535,8 @@ const Setup = () => {
               )}
             </div>
 
-            <Button 
-              onClick={handleAddPerson} 
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
+           <Button onClick={handleAddPerson} className="w-full" size="lg">
+              <UserPlus className="mr-2 h-4 w-4" />
               Add Person
             </Button>
           </CardContent>
