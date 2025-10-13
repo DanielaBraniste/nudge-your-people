@@ -10,6 +10,7 @@ import { UserPlus, Calendar, Clock, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ManagePeopleSheet from "@/components/ManagePeopleSheet";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { format } from "date-fns";
 
 interface Person {
@@ -30,6 +31,7 @@ const Setup = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const { scheduleNotification, cancelNotification, scheduleAllNotifications, requestPermission } = useNotifications();
+  const { trackPersonAdded } = useAnalytics();
 
   // Update current time every minute
   useEffect(() => {
@@ -154,6 +156,9 @@ const Setup = () => {
     // Schedule notification for this person
     scheduleNotification(newPerson);
     
+    // Track when person is added
+    trackPersonAdded();
+    
     setCurrentPerson({
       name: "",
       frequency: "weekly",
@@ -189,7 +194,6 @@ const Setup = () => {
       });
       return;
     }
-
     localStorage.setItem("catchUpPeople", JSON.stringify(people));
     navigate("/calendar");
   };
@@ -226,30 +230,32 @@ const Setup = () => {
   const dayOfMonthOptions = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/30 p-4 md:p-8">
-      <ManagePeopleSheet onUpdate={loadPeople} />
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Catch-Up Reminder
-          </h1>
-          <p className="text-muted-foreground text-lg">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center space-y-2 animate-fade-in">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Calendar className="w-8 h-8 text-purple-600" />
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Catch-Up Reminder
+            </h1>
+          </div>
+          <p className="text-gray-600 text-lg">
             Never miss an opportunity to connect with the people who matter
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Globe className="h-4 w-4" />
-            <span>{timezone} • {format(currentTime, 'PPp')}</span>
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <Globe className="w-4 h-4" />
+            {timezone} • {format(currentTime, 'PPp')}
           </div>
         </div>
 
         {/* YOUR CATCH-UP LIST CARD - SHOWS FIRST WHEN PEOPLE EXIST */}
         {people.length > 0 && (
-          <Card className="shadow-lg border-0 bg-card/80 backdrop-blur">
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Your Catch-Up List ({people.length})</CardTitle>
               <CardDescription>People you're staying in touch with</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               {people.map((person) => {
                 const scheduledNotifications = JSON.parse(
                   localStorage.getItem('scheduledNotifications') || '{}'
@@ -257,13 +263,10 @@ const Setup = () => {
                 const notification = scheduledNotifications[person.id];
                 
                 return (
-                  <div
-                    key={person.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-semibold">{person.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                  <div key={person.id} className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-semibold text-lg">{person.name}</p>
+                      <p className="text-sm text-gray-600">
                         {person.frequency.charAt(0).toUpperCase() + person.frequency.slice(1)}
                         {" • "}
                         {getDisplayText(person)}
@@ -273,13 +276,13 @@ const Setup = () => {
                          person.method === "dm" ? "📱 DM" : "✨ Other"}
                       </p>
                       {notification && (
-                        <p className="text-xs text-muted-foreground/80">
+                        <p className="text-xs text-purple-600 mt-1">
                           Next reminder: {notification.formattedTime}
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
+                    <Button 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => handleRemovePerson(person.id)}
                     >
@@ -288,9 +291,11 @@ const Setup = () => {
                   </div>
                 );
               })}
-
-              <Button onClick={handleViewCalendar} className="w-full mt-6" size="lg" variant="default">
-                <Calendar className="mr-2 h-4 w-4" />
+              <Button 
+                onClick={handleViewCalendar} 
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
                 View Calendar
               </Button>
             </CardContent>
@@ -298,37 +303,36 @@ const Setup = () => {
         )}
 
         {/* ADD SOMEONE CARD - NOW APPEARS SECOND (OR FIRST IF NO PEOPLE) */}
-        <Card className="shadow-lg border-0 bg-card/80 backdrop-blur">
+        <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5 text-primary" />
+              <UserPlus className="w-5 h-5" />
               Add Someone to Catch Up With
             </CardTitle>
             <CardDescription>
               Set up reminders for the people you want to stay in touch with
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
+          <CardContent className="space-y-4">
+            <div>
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                placeholder="Enter person's name"
                 value={currentPerson.name}
                 onChange={(e) => setCurrentPerson({ ...currentPerson, name: e.target.value })}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="frequency" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+              <Label htmlFor="frequency">
+                <Clock className="w-4 h-4 inline mr-2" />
                 Frequency
               </Label>
               <Select
                 value={currentPerson.frequency}
                 onValueChange={(value) => setCurrentPerson({ ...currentPerson, frequency: value })}
               >
-                <SelectTrigger id="frequency">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -341,15 +345,15 @@ const Setup = () => {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="method">Catch-up Method</Label>
+            <div>
+              <Label>Catch-up Method</Label>
               <Select
                 value={currentPerson.method}
                 onValueChange={(value: "call" | "text" | "dm" | "other") =>
                   setCurrentPerson({ ...currentPerson, method: value })
                 }
               >
-                <SelectTrigger id="method">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -361,43 +365,43 @@ const Setup = () => {
               </Select>
             </div>
 
-            <div className="space-y-4">
-              <Label className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+            <div className="space-y-3">
+              <Label className="text-base">
+                <Clock className="w-4 h-4 inline mr-2" />
                 Time Preference
               </Label>
               <RadioGroup
                 value={currentPerson.timeType}
-                onValueChange={(value: "fixed" | "random") => 
+                onValueChange={(value: "fixed" | "random") =>
                   setCurrentPerson({ ...currentPerson, timeType: value })
                 }
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
                   <RadioGroupItem value="fixed" id="fixed" />
-                  <Label htmlFor="fixed" className="font-normal cursor-pointer">
+                  <Label htmlFor="fixed" className="flex-1 cursor-pointer">
                     Fixed Day & Time
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
                   <RadioGroupItem value="random" id="random" />
-                  <Label htmlFor="random" className="font-normal cursor-pointer">
+                  <Label htmlFor="random" className="flex-1 cursor-pointer">
                     Random Within Time Window
                   </Label>
                 </div>
               </RadioGroup>
 
               {currentPerson.timeType === "fixed" ? (
-                <div className="space-y-4 ml-6">
+                <div className="space-y-3 mt-3">
                   {shouldShowDayOfWeekSelector() && (
-                    <div className="space-y-2">
-                      <Label htmlFor="fixedDay">Day of Week</Label>
+                    <div>
+                      <Label>Day of Week</Label>
                       <Select
                         value={currentPerson.fixedDay}
                         onValueChange={(value) =>
                           setCurrentPerson({ ...currentPerson, fixedDay: value })
                         }
                       >
-                        <SelectTrigger id="fixedDay">
+                        <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -414,18 +418,18 @@ const Setup = () => {
                   )}
 
                   {shouldShowDayOfMonthSelector() && (
-                    <div className="space-y-2">
-                      <Label htmlFor="fixedDayOfMonth">Day of Month</Label>
+                    <div>
+                      <Label>Day of Month</Label>
                       <Select
                         value={currentPerson.fixedDayOfMonth.toString()}
                         onValueChange={(value) =>
                           setCurrentPerson({ ...currentPerson, fixedDayOfMonth: parseInt(value) })
                         }
                       >
-                        <SelectTrigger id="fixedDayOfMonth">
+                        <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
+                        <SelectContent>
                           {dayOfMonthOptions.map((day) => {
                             const suffix = day === 1 ? 'st' : 
                                          day === 2 ? 'nd' : 
@@ -444,16 +448,16 @@ const Setup = () => {
                       </Select>
                     </div>
                   )}
-                  
-                  <div className="space-y-2">
-                    <Label>Select Time</Label>
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-1">
+
+                  <div>
+                    <Label className="mb-2 block">Select Time</Label>
+                    <div className="flex items-center justify-center gap-4">
+                      <div className="text-center">
                         <Input
                           type="number"
                           min="0"
                           max="23"
-                          value={parseInt(currentPerson.fixedTime.split(':')[0])}
+                          value={currentPerson.fixedTime.split(':')[0]}
                           onChange={(e) => {
                             let hour = parseInt(e.target.value) || 0;
                             hour = Math.max(0, Math.min(23, hour));
@@ -475,17 +479,17 @@ const Setup = () => {
                           placeholder="HH"
                           className="text-center text-lg font-semibold"
                         />
-                        <p className="text-xs text-muted-foreground text-center mt-1">Hour</p>
+                        <p className="text-xs text-gray-500 mt-1">Hour</p>
                       </div>
                       
                       <span className="text-2xl font-bold">:</span>
                       
-                      <div className="flex-1">
+                      <div className="text-center">
                         <Input
                           type="number"
                           min="0"
                           max="59"
-                          value={parseInt(currentPerson.fixedTime.split(':')[1])}
+                          value={currentPerson.fixedTime.split(':')[1]}
                           onChange={(e) => {
                             let minute = parseInt(e.target.value) || 0;
                             minute = Math.max(0, Math.min(59, minute));
@@ -507,21 +511,21 @@ const Setup = () => {
                           placeholder="MM"
                           className="text-center text-lg font-semibold"
                         />
-                        <p className="text-xs text-muted-foreground text-center mt-1">Minute</p>
+                        <p className="text-xs text-gray-500 mt-1">Minute</p>
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2 ml-6">
-                  <Label htmlFor="timeWindow">Time Window</Label>
+                <div>
+                  <Label>Time Window</Label>
                   <Select
                     value={currentPerson.timeWindow}
                     onValueChange={(value: "morning" | "afternoon" | "evening") =>
                       setCurrentPerson({ ...currentPerson, timeWindow: value })
                     }
                   >
-                    <SelectTrigger id="timeWindow">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -534,8 +538,11 @@ const Setup = () => {
               )}
             </div>
 
-            <Button onClick={handleAddPerson} className="w-full" size="lg">
-              <UserPlus className="mr-2 h-4 w-4" />
+            <Button 
+              onClick={handleAddPerson} 
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
               Add Person
             </Button>
           </CardContent>
