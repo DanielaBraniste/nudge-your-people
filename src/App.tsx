@@ -10,6 +10,7 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermission } from "./components/NotificationPermission";
 import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
 import { AnalyticsForm } from "./components/AnalyticsForm";
+import { SilentUpdate } from "./components/SilentUpdate";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
       <NotificationPermission />
       <ConfirmCatchUpDialog />
       <AnalyticsForm />
+      <SilentUpdate />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />
