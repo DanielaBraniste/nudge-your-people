@@ -89,22 +89,23 @@ export const useAnalytics = () => {
         timestamp: new Date().toISOString(),
       };
 
-      // Submit to Netlify form
-      const formData = new FormData();
-      formData.append('form-name', 'analytics');
-      formData.append('timeSpent', `${analyticsData.timeSpent} seconds`);
-      formData.append('peopleAdded', analyticsData.peopleAdded.toString());
-      formData.append('catchUpDetails', analyticsData.catchUpDetails);
-      formData.append('pwaInstalled', analyticsData.pwaInstalled ? 'Yes' : 'No');
-      formData.append('device', analyticsData.device);
-      formData.append('location', analyticsData.location);
-      formData.append('timestamp', analyticsData.timestamp);
+// Submit to Netlify form
+const formData = new FormData();
+formData.append('form-name', 'analytics');
+formData.append('bot-field', ''); // Important: include the honeypot field
+formData.append('timeSpent', `${analyticsData.timeSpent} seconds`);
+formData.append('peopleAdded', analyticsData.peopleAdded.toString());
+formData.append('catchUpDetails', analyticsData.catchUpDetails);
+formData.append('pwaInstalled', analyticsData.pwaInstalled ? 'Yes' : 'No');
+formData.append('device', analyticsData.device);
+formData.append('location', analyticsData.location);
+formData.append('timestamp', analyticsData.timestamp);
 
-      await fetch('/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData as any).toString(),
-      });
+await fetch('/', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: new URLSearchParams(formData as any).toString(),
+});
 
       setHasSubmitted(true);
       console.log('Analytics submitted successfully');
