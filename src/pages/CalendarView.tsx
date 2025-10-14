@@ -241,7 +241,29 @@ const CalendarView = () => {
               </Button>
             </CardContent>
           </Card>
-        )}
+       )}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-12 pt-6 border-t border-border/40">
+        <div className="text-center text-sm text-muted-foreground">
+          <p>
+            Need help?{" "}
+            <a 
+              href="mailto:info@tadamn.org" 
+              className="text-primary hover:underline font-medium transition-colors"
+            >
+              Contact us here
+            </a>
+            {" "}or{" "}
+            <a 
+              href="https://buymeacoffee.com/tadamn" 
+              className="text-primary hover:underline font-medium transition-colors"
+            >
+              Support here
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
