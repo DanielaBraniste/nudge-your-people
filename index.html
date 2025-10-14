@@ -3,41 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- Add these for better in-app browser compatibility -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     
-    <!-- Title and Description -->
     <title>Nudgely - Stay Connected</title>
     <meta name="description" content="Never miss an opportunity to connect with the people who matter. Set up personalized reminders to catch up with friends and family." />
     <meta name="author" content="Nudgely" />
 
-    <!-- Favicon and App Icons -->
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    
-    <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#00A6EA" />
 
-    <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:title" content="Nudgely - Stay Connected" />
     <meta property="og:description" content="Never miss an opportunity to connect with the people who matter" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://nudgely.org" />
     <meta property="og:image" content="https://nudgely.org/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
     
-    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Nudgely - Stay Connected" />
     <meta name="twitter:description" content="Never miss an opportunity to connect with the people who matter" />
     <meta name="twitter:image" content="https://nudgely.org/twitter-image.png" />
     
-    <!-- Loading fallback styles -->
     <style>
-      /* Show loading message while app loads */
       #root:empty::before {
         content: "Loading Nudgely...";
         display: flex;
@@ -45,22 +33,10 @@
         align-items: center;
         height: 100vh;
         font-size: 1.5rem;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        font-family: sans-serif;
         color: #00A6EA;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        animation: pulse 2s ease-in-out infinite;
       }
-      
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-      
-      /* Reset default styles */
-      body {
-        margin: 0;
-        padding: 0;
-      }
+      body { margin: 0; padding: 0; }
     </style>
   </head>
 
@@ -68,7 +44,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Netlify Forms -->
     <form name="analytics" netlify netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="analytics" />
       <input type="text" name="bot-field" />
@@ -81,27 +56,10 @@
       <input type="text" name="timestamp" />
     </form>
     
-    <!-- Fallback for browsers without JavaScript -->
     <noscript>
-      <div style="
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        padding: 20px;
-        text-align: center;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-      ">
-        <h1 style="color: #00A6EA; margin-bottom: 1rem;">Nudgely</h1>
-        <h2 style="color: #334155; margin-bottom: 1rem;">JavaScript Required</h2>
-        <p style="color: #64748b; max-width: 400px; line-height: 1.6;">
-          This app requires JavaScript to run. Please enable JavaScript in your browser settings or open this link in a regular browser (Safari, Chrome, Firefox).
-        </p>
-        <p style="color: #64748b; margin-top: 2rem; font-size: 0.875rem;">
-          If you're viewing this from Instagram or another app, tap the "..." menu and select "Open in Browser".
-        </p>
+      <div style="padding: 20px; text-align: center;">
+        <h1>JavaScript Required</h1>
+        <p>Please enable JavaScript to use Nudgely.</p>
       </div>
     </noscript>
   </body>
