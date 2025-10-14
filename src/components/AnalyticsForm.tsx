@@ -3,8 +3,8 @@ export const AnalyticsForm = () => {
   return (
     <form 
       name="analytics" 
-      netlify="true" 
-      netlify-honeypot="bot-field"
+      data-netlify="true" 
+      data-netlify-honeypot="bot-field"
       hidden
     >
       <input type="hidden" name="form-name" value="analytics" />
