@@ -14,23 +14,28 @@ export default defineConfig(({ mode }) => ({
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'autoUpdate', // Enables silent auto-updates
+      registerType: 'prompt', // Changed from 'autoUpdate' - less aggressive
+      injectRegister: 'inline', // Better compatibility
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
-        skipWaiting: true, // Activate new service worker immediately
-        clientsClaim: true, // Take control of all pages immediately
+        skipWaiting: false, // Changed to false - less aggressive
+        clientsClaim: false, // Changed to false - less aggressive
+        // Add navigation fallback
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/admin/],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Catch-Up Reminder',
-        short_name: 'CatchUp',
+        name: 'Nudgely - Stay Connected',
+        short_name: 'Nudgely',
         description: 'Never miss an opportunity to connect with the people who matter',
-        theme_color: '#9333EA',
+        theme_color: '#00A6EA',
         background_color: '#FFFFFF',
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        orientation: 'portrait',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -51,7 +56,7 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: true, // Enable PWA in development for testing
+        enabled: false, // Disable in development to avoid conflicts
       }
     })
   ].filter(Boolean),
@@ -59,5 +64,20 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  base: '/', // Explicitly set base
+  build: {
+    outDir: 'dist',
+    sourcemap: true, // Enable for debugging
+    minify: 'esbuild', // Keep minification but use esbuild
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
   },
 }));
