@@ -6,44 +6,149 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     
     <title>Nudgely - Stay Connected</title>
-    <meta name="description" content="Never miss an opportunity to connect with the people who matter. Set up personalized reminders to catch up with friends and family." />
-    <meta name="author" content="Nudgely" />
-
+    <meta name="description" content="Never miss an opportunity to connect with the people who matter." />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#00A6EA" />
-
-    <meta property="og:title" content="Nudgely - Stay Connected" />
-    <meta property="og:description" content="Never miss an opportunity to connect with the people who matter" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://nudgely.org" />
-    <meta property="og:image" content="https://nudgely.org/og-image.png" />
-    
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Nudgely - Stay Connected" />
-    <meta name="twitter:description" content="Never miss an opportunity to connect with the people who matter" />
-    <meta name="twitter:image" content="https://nudgely.org/twitter-image.png" />
     
     <style>
-      #root:empty::before {
-        content: "Loading Nudgely...";
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        font-size: 1.5rem;
-        font-family: sans-serif;
-        color: #00A6EA;
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        min-height: 100vh;
       }
-      body { margin: 0; padding: 0; }
+      #debug {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        background: white;
+        border: 2px solid #00A6EA;
+        border-radius: 8px;
+        padding: 15px;
+        font-size: 14px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 99999;
+      }
+      .status { 
+        margin: 5px 0; 
+        padding: 5px;
+        border-left: 3px solid #00A6EA;
+        padding-left: 10px;
+      }
+      .error { 
+        border-left-color: red; 
+        color: red; 
+      }
+      .success { 
+        border-left-color: green; 
+        color: green; 
+      }
+      #root {
+        padding: 20px;
+        margin-top: 220px;
+      }
     </style>
   </head>
 
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Debug output -->
+    <div id="debug">
+      <div class="status">📱 Starting Nudgely...</div>
+    </div>
     
+    <!-- App root -->
+    <div id="root"></div>
+    
+    <!-- Inline script to test basic JS -->
+    <script>
+      const debug = document.getElementById('debug');
+      
+      function addStatus(message, isError = false, isSuccess = false) {
+        const div = document.createElement('div');
+        div.className = 'status' + (isError ? ' error' : '') + (isSuccess ? ' success' : '');
+        div.textContent = message;
+        debug.appendChild(div);
+        debug.scrollTop = debug.scrollHeight;
+      }
+      
+      addStatus('✅ HTML loaded', false, true);
+      addStatus('✅ JavaScript is running', false, true);
+      addStatus('🌐 User Agent: ' + navigator.userAgent.substring(0, 50) + '...');
+      
+      // Check if root exists
+      const root = document.getElementById('root');
+      if (root) {
+        addStatus('✅ Root element found', false, true);
+      } else {
+        addStatus('❌ Root element NOT found', true);
+      }
+      
+      // Check if modules are supported
+      if ('noModule' in HTMLScriptElement.prototype) {
+        addStatus('✅ ES Modules supported', false, true);
+      } else {
+        addStatus('❌ ES Modules NOT supported', true);
+      }
+      
+      addStatus('⏳ Loading React app...');
+    </script>
+    
+    <!-- Load the app -->
+    <script type="module">
+      const debug = document.getElementById('debug');
+      
+      function addStatus(message, isError = false, isSuccess = false) {
+        const div = document.createElement('div');
+        div.className = 'status' + (isError ? ' error' : '') + (isSuccess ? ' success' : '');
+        div.textContent = message;
+        debug.appendChild(div);
+        debug.scrollTop = debug.scrollHeight;
+      }
+      
+      try {
+        addStatus('✅ Module script loaded', false, true);
+        
+        // Import and render
+        import('./src/main.tsx').then(() => {
+          addStatus('✅ Main.tsx imported', false, true);
+          setTimeout(() => {
+            const root = document.getElementById('root');
+            if (root && root.innerHTML.trim()) {
+              addStatus('✅ React rendered successfully!', false, true);
+              setTimeout(() => {
+                debug.style.display = 'none';
+              }, 3000);
+            } else {
+              addStatus('❌ React did not render', true);
+            }
+          }, 1000);
+        }).catch(err => {
+          addStatus('❌ Import error: ' + err.message, true);
+        });
+      } catch (err) {
+        addStatus('❌ Module error: ' + err.message, true);
+      }
+    </script>
+    
+    <!-- Fallback for old browsers -->
+    <script nomodule>
+      const debug = document.getElementById('debug');
+      const div = document.createElement('div');
+      div.className = 'status error';
+      div.innerHTML = '❌ Your browser does not support ES Modules. Please use a modern browser or open in Safari/Chrome.';
+      debug.appendChild(div);
+    </script>
+    
+    <noscript>
+      <div style="padding: 20px; text-align: center;">
+        <h1>JavaScript Required</h1>
+        <p>Please enable JavaScript or open in a regular browser.</p>
+      </div>
+    </noscript>
+    
+    <!-- Netlify Forms -->
     <form name="analytics" netlify netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="analytics" />
       <input type="text" name="bot-field" />
@@ -55,12 +160,5 @@
       <input type="text" name="location" />
       <input type="text" name="timestamp" />
     </form>
-    
-    <noscript>
-      <div style="padding: 20px; text-align: center;">
-        <h1>JavaScript Required</h1>
-        <p>Please enable JavaScript to use Nudgely.</p>
-      </div>
-    </noscript>
   </body>
 </html>
