@@ -14,16 +14,32 @@ export default defineConfig(({ mode }) => ({
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'prompt', // Changed from 'autoUpdate' - less aggressive
-      injectRegister: 'inline', // Better compatibility
+      registerType: 'autoUpdate',
+      injectRegister: null, // We'll handle registration manually
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
-        skipWaiting: false, // Changed to false - less aggressive
-        clientsClaim: false, // Changed to false - less aggressive
-        // Add navigation fallback
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
+        // Add runtime caching for better offline support
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -56,7 +72,7 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: false, // Disable in development to avoid conflicts
+        enabled: false,
       }
     })
   ].filter(Boolean),
@@ -65,11 +81,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '/', // Explicitly set base
+  base: '/',
   build: {
     outDir: 'dist',
-    sourcemap: true, // Enable for debugging
-    minify: 'esbuild', // Keep minification but use esbuild
+    sourcemap: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -77,7 +92,5 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000,
   },
 }));
