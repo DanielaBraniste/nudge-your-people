@@ -11,6 +11,7 @@ import { NotificationPermission } from "./components/NotificationPermission";
 import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
 import { AnalyticsForm } from "./components/AnalyticsForm";
 import { SilentUpdate } from "./components/SilentUpdate";
+import { InAppBrowserNotice } from "./components/InAppBrowserNotice";
 
 const queryClient = new QueryClient();
 
@@ -24,11 +25,11 @@ const App = () => (
       <ConfirmCatchUpDialog />
       <AnalyticsForm />
       <SilentUpdate />
+      <InAppBrowserNotice />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />
           <Route path="/calendar" element={<CalendarView />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
