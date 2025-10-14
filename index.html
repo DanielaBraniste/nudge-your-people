@@ -35,5 +35,17 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+       <!-- Netlify Forms -->
+    <form name="analytics" netlify netlify-honeypot="bot-field" hidden>
+      <input type="hidden" name="form-name" value="analytics" />
+      <input type="text" name="bot-field" />
+      <input type="text" name="timeSpent" />
+      <input type="text" name="peopleAdded" />
+      <input type="text" name="catchUpDetails" />
+      <input type="text" name="pwaInstalled" />
+      <input type="text" name="device" />
+      <input type="text" name="location" />
+      <input type="text" name="timestamp" />
+    </form>
   </body>
 </html>
