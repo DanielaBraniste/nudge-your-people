@@ -1,32 +1,61 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { isInAppBrowser, getBrowserInfo } from "@/lib/browserDetection";
 
-// Register service worker for PWA with better error handling
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('ServiceWorker registration successful:', registration.scope);
-      })
-      .catch((error) => {
-        console.log('ServiceWorker registration failed (this is OK in some browsers):', error);
-        // App will still work without service worker
-      });
-  });
-}
+// Logging
+console.log('=== NUDGELY STARTING ===');
+console.log('Browser:', getBrowserInfo());
+console.log('In-App Browser:', isInAppBrowser());
+console.log('URL:', window.location.href);
 
-// Add error boundary
-const rootElement = document.getElementById("root");
+// Function to render the app
+const renderApp = () => {
+  const rootElement = document.getElementById("root");
 
-if (!rootElement) {
-  console.error('Root element not found');
-} else {
-  try {
-    createRoot(rootElement).render(<App />);
-  } catch (error) {
-    console.error('Failed to render app:', error);
-    // Fallback: show error message
-    rootElement.innerHTML = '<div style="padding: 20px; text-align: center;"><h1>Loading...</h1><p>If this persists, please open in a regular browser.</p></div>';
+  if (!rootElement) {
+    console.error('ROOT ELEMENT NOT FOUND!');
+    return;
   }
-}
+
+  try {
+    const root = createRoot(rootElement);
+    root.render(<App />);
+    console.log('=== APP RENDERED SUCCESSFULLY ===');
+  } catch (error) {
+    console.error('RENDER ERROR:', error);
+    rootElement.innerHTML = `
+      <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+        <h1 style="color: red;">App Failed to Load</h1>
+        <p>Error: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+        <button onclick="window.location.reload()" style="
+          padding: 10px 20px;
+          font-size: 16px;
+          background: #00A6EA;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          margin-top: 20px;
+        ">
+          Try Again
+        </button>
+        <p style="margin-top: 20px; font-size: 14px; color: #666;">
+          ${isInAppBrowser() ? `Tip: Try opening this link in ${getBrowserInfo() === 'Instagram Browser' ? 'Safari or Chrome' : 'your regular browser'}` : ''}
+        </p>
+      </div>
+    `;
+  }
+};
+
+// Global error handlers
+window.addEventListener('error', (event) => {
+  console.error('GLOBAL ERROR:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('UNHANDLED PROMISE REJECTION:', event.reason);
+});
+
+// Render the app
+renderApp();
