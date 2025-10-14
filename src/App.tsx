@@ -10,8 +10,8 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermission } from "./components/NotificationPermission";
 import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
 import { AnalyticsForm } from "./components/AnalyticsForm";
-import { SilentUpdate } from "./components/SilentUpdate";
-// Removed InAppBrowserNotice for now
+// Keep SilentUpdate disabled for now
+// import { SilentUpdate } from "./components/SilentUpdate";
 
 const queryClient = new QueryClient();
 
@@ -24,7 +24,7 @@ const App = () => (
       <NotificationPermission />
       <ConfirmCatchUpDialog />
       <AnalyticsForm />
-      <SilentUpdate />
+      {/* <SilentUpdate /> - Keep disabled */}
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />
