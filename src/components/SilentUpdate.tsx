@@ -5,6 +5,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
  * Silent Update Component
  * Automatically updates the PWA when a new version is available
  * Preserves all user data in localStorage
+ * Gracefully handles in-app browsers that don't support service workers
  */
 export const SilentUpdate = () => {
   const {
@@ -22,7 +23,16 @@ export const SilentUpdate = () => {
       }
     },
     onRegisterError(error) {
-      console.error('Service Worker registration error:', error);
+      // Service worker registration failed - this is expected in some browsers
+      // (like Instagram in-app browser) and the app will still work fine
+      const ua = navigator.userAgent.toLowerCase();
+      const isInAppBrowser = ua.includes('instagram') || ua.includes('fb') || ua.includes('facebook');
+      
+      if (isInAppBrowser) {
+        console.log('ℹ️ In-app browser detected - PWA features unavailable (this is normal)');
+      } else {
+        console.log('Service Worker registration failed:', error);
+      }
     },
   });
 
