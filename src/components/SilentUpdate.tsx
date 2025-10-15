@@ -16,11 +16,14 @@ const isProblematicBrowser = (): boolean => {
 export const SilentUpdate = () => {
   const isProblemBrowser = isProblematicBrowser();
 
+  // Only use the hook if not in a problematic browser
+  const shouldRegister = !isProblemBrowser && 'serviceWorker' in navigator;
+
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    immediate: !isProblemBrowser, // Only register if not in problematic browser
+    immediate: shouldRegister,
     onRegisteredSW(swUrl, registration) {
       if (isProblemBrowser) {
         console.log('In-app browser detected - service worker disabled');
@@ -44,13 +47,11 @@ export const SilentUpdate = () => {
   });
 
   useEffect(() => {
-    if (needRefresh && !isProblemBrowser) {
-      // Silently update and reload
+    if (needRefresh && shouldRegister) {
       updateServiceWorker(true);
     }
-  }, [needRefresh, updateServiceWorker, isProblemBrowser]);
+  }, [needRefresh, updateServiceWorker, shouldRegister]);
 
-  // Show a subtle indicator if in problematic browser
   useEffect(() => {
     if (isProblemBrowser) {
       console.log('🔧 Running in compatibility mode (in-app browser detected)');
