@@ -22,18 +22,14 @@ export const SilentUpdate = () => {
       }
     },
     onRegisterError(error) {
-      // Just log it - don't let it break anything
-      console.log('Service Worker not available in this browser (this is normal for in-app browsers)');
+      console.error('Service Worker registration error:', error);
     },
   });
 
   useEffect(() => {
     if (needRefresh) {
-      try {
-        updateServiceWorker(true);
-      } catch (e) {
-        console.log('Update skipped');
-      }
+      // Silently update and reload
+      updateServiceWorker(true);
     }
   }, [needRefresh, updateServiceWorker]);
 
