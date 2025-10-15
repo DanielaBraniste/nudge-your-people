@@ -14,22 +14,21 @@ export default defineConfig(({ mode }) => ({
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'autoUpdate', // Enables silent auto-updates
+      registerType: 'autoUpdate',
+      injectRegister: 'inline', // Changed: allows conditional registration
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
-        skipWaiting: true, // Activate new service worker immediately
-        clientsClaim: true, // Take control of all pages immediately
+        skipWaiting: true,
+        clientsClaim: true,
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Catch-Up Reminder',
         short_name: 'CatchUp',
         description: 'Never miss an opportunity to connect with the people who matter',
-        theme_color: '
-#9333EA',
-        background_color: '
-#FFFFFF',
+        theme_color: '#9333EA',
+        background_color: '#FFFFFF',
         display: 'standalone',
         scope: '/',
         start_url: '/',
@@ -53,7 +52,7 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: true, // Enable PWA in development for testing
+        enabled: true,
       }
     })
   ].filter(Boolean),
