@@ -10,8 +10,7 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { NotificationPermission } from "./components/NotificationPermission";
 import { ConfirmCatchUpDialog } from "./components/ConfirmCatchUpDialog";
 import { AnalyticsForm } from "./components/AnalyticsForm";
-// Keep SilentUpdate disabled for now
-// import { SilentUpdate } from "./components/SilentUpdate";
+import { SilentUpdate } from "./components/SilentUpdate";
 
 const queryClient = new QueryClient();
 
@@ -24,11 +23,12 @@ const App = () => (
       <NotificationPermission />
       <ConfirmCatchUpDialog />
       <AnalyticsForm />
-      {/* <SilentUpdate /> - Keep disabled */}
+      <SilentUpdate />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Setup />} />
           <Route path="/calendar" element={<CalendarView />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
