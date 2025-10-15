@@ -9,13 +9,19 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    fs: {
+      strict: true,
+    },
+  },
+  optimizeDeps: {
+    exclude: ['virtual:pwa-register/react'],
   },
   plugins: [
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: null, // Let us handle registration manually
+      injectRegister: null,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
