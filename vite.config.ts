@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        // Don't fail if assets are missing
+        navigateFallback: null,
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -31,7 +33,7 @@ export default defineConfig(({ mode }) => ({
         display: 'standalone',
         scope: '/',
         start_url: '/',
-        icons: [
+        icons: mode === 'production' ? [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
@@ -48,7 +50,7 @@ export default defineConfig(({ mode }) => ({
             type: 'image/png',
             purpose: 'any maskable'
           }
-        ]
+        ] : [], // Empty icons array in development
       },
       devOptions: {
         enabled: true,
