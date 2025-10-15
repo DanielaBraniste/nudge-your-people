@@ -1,9 +1,8 @@
-import { useEffect, useMemo } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useEffect } from 'react';
 
 // Detect problematic in-app browsers
 const isProblematicBrowser = (): boolean => {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent.toLowerCase();
   return ua.includes('instagram') || 
          ua.includes('fb') || 
@@ -14,52 +13,56 @@ const isProblematicBrowser = (): boolean => {
 };
 
 /**
- * Silent Update Component
- * Automatically updates the PWA when a new version is available
- * Preserves all user data in localStorage
- * Skips service worker registration in problematic in-app browsers
+ * PWA Registration Component (for normal browsers only)
  */
-export const SilentUpdate = () => {
-  // Check if we're in a problematic browser BEFORE registering
-  const shouldSkipRegistration = useMemo(() => isProblematicBrowser(), []);
-
+const PWARegistration = () => {
+  const { useRegisterSW } = require('virtual:pwa-register/react');
+  
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    immediate: !shouldSkipRegistration, // Don't register in problematic browsers
-    onRegisteredSW(swUrl, registration) {
-      if (shouldSkipRegistration) return;
-      
+    onRegisteredSW(swUrl: string, registration: ServiceWorkerRegistration) {
       console.log('Service Worker registered:', swUrl);
       
-      // Check for updates every hour
       if (registration) {
         setInterval(() => {
           registration.update();
         }, 60 * 60 * 1000);
       }
     },
-    onRegisterError(error) {
-      if (shouldSkipRegistration) {
-        console.log('ℹ️ In-app browser detected - service worker registration skipped');
-        return;
-      }
+    onRegisterError(error: any) {
       console.log('Service Worker registration error:', error);
     },
   });
 
   useEffect(() => {
-    if (shouldSkipRegistration) {
-      console.log('🔧 Running in compatibility mode (Telegram/Instagram/Facebook in-app browser)');
-      return;
-    }
-
     if (needRefresh) {
-      // Silently update and reload
       updateServiceWorker(true);
     }
-  }, [needRefresh, updateServiceWorker, shouldSkipRegistration]);
+  }, [needRefresh, updateServiceWorker]);
 
   return null;
+};
+
+/**
+ * Silent Update Component
+ * Automatically updates the PWA when a new version is available
+ * Skips PWA registration entirely in problematic in-app browsers
+ */
+export const SilentUpdate = () => {
+  const isProblemBrowser = isProblematicBrowser();
+
+  useEffect(() => {
+    if (isProblemBrowser) {
+      console.log('🔧 In-app browser detected (Telegram/Instagram/Facebook) - running in compatibility mode');
+    }
+  }, [isProblemBrowser]);
+
+  // Don't render PWA logic at all in problematic browsers
+  if (isProblemBrowser) {
+    return null;
+  }
+
+  return <PWARegistration />;
 };
