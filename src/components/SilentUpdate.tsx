@@ -1,5 +1,4 @@
-import { useEffect, useMemo } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useEffect } from 'react';
 
 // Detect problematic in-app browsers
 const isProblematicBrowser = (): boolean => {
@@ -15,51 +14,51 @@ const isProblematicBrowser = (): boolean => {
 
 /**
  * Silent Update Component
- * Automatically updates the PWA when a new version is available
- * Preserves all user data in localStorage
- * Skips service worker registration in problematic in-app browsers
+ * Manually registers service worker in safe browsers only
+ * Completely skips registration in Telegram/Instagram/Facebook
  */
 export const SilentUpdate = () => {
-  // Check if we're in a problematic browser BEFORE registering
-  const shouldSkipRegistration = useMemo(() => isProblematicBrowser(), []);
-
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    immediate: !shouldSkipRegistration, // Don't register in problematic browsers
-    onRegisteredSW(swUrl, registration) {
-      if (shouldSkipRegistration) return;
-      
-      console.log('Service Worker registered:', swUrl);
-      
-      // Check for updates every hour
-      if (registration) {
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000);
-      }
-    },
-    onRegisterError(error) {
-      if (shouldSkipRegistration) {
-        console.log('ℹ️ In-app browser detected - service worker registration skipped');
-        return;
-      }
-      console.log('Service Worker registration error:', error);
-    },
-  });
-
   useEffect(() => {
-    if (shouldSkipRegistration) {
-      console.log('🔧 Running in compatibility mode (Telegram/Instagram/Facebook in-app browser)');
+    const isProblemBrowser = isProblematicBrowser();
+
+    if (isProblemBrowser) {
+      console.log('🔧 In-app browser detected - running without service worker');
       return;
     }
 
-    if (needRefresh) {
-      // Silently update and reload
-      updateServiceWorker(true);
+    // Only register in safe browsers
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/',
+          });
+          
+          console.log('✅ Service Worker registered');
+
+          // Check for updates every hour
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+
+          // Auto-reload on update
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('🔄 Update available - reloading');
+                window.location.reload();
+              }
+            });
+          });
+        } catch (error) {
+          console.log('ℹ️ Service Worker registration skipped');
+        }
+      });
     }
-  }, [needRefresh, updateServiceWorker, shouldSkipRegistration]);
+  }, []);
 
   return null;
 };
