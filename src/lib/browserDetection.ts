@@ -1,6 +1,6 @@
 export const isInAppBrowser = (): boolean => {
-  const ua = navigator.userAgent || '';
-  const inAppBrowsers = ['FBAN', 'FBAV', 'Instagram', 'FB_IAB', 'Telegram'];
+  const ua = navigator.userAgent.toLowerCase();
+  const inAppBrowsers = ['instagram', 'fb', 'fbav', 'fban', 'fb_iab', 'telegram'];
   return inAppBrowsers.some(browser => ua.includes(browser));
 };
 
@@ -10,8 +10,8 @@ export const isServiceWorkerSupported = (): boolean => {
 
 export const getBrowserInfo = (): string => {
   const ua = navigator.userAgent;
-  if (ua.includes('Instagram')) return 'Instagram Browser';
-  if (ua.includes('FBAN') || ua.includes('FBAV')) return 'Facebook Browser';
-  if (ua.includes('Telegram')) return 'Telegram Browser';
+  if (ua.includes('Instagram')) return 'Instagram';
+  if (ua.includes('FBAN') || ua.includes('FBAV')) return 'Facebook';
+  if (ua.includes('Telegram')) return 'Telegram';
   return 'Browser';
 };
