@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Catch-Up Reminder',
-        short_name: 'CatchUp',
+        short_name: 'Nudgely',
         description: 'Never miss an opportunity to connect with the people who matter',
         theme_color: '#9333EA',
         background_color: '#FFFFFF',
