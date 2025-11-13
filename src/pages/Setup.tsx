@@ -236,7 +236,7 @@ const Setup = () => {
           <div className="flex items-center justify-center gap-2 mb-2">
             <Calendar className="w-8 h-8 text-muted-foreground/80" />
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Nudgely
+              Catch-up Reminder
             </h1>
           </div>
           <p className="text-muted-foreground text-lg">
