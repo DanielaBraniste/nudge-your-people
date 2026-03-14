@@ -63,8 +63,8 @@ self.addEventListener('message', (event) => {
       const timeoutId = setTimeout(() => {
         self.registration.showNotification(title, {
           body: body,
-          icon: '/icon-192x192.png', // Update to your actual icon path
-          badge: '/badge-72x72.png', // Update to your actual badge path
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
           tag: id,
           requireInteraction: true,
           vibrate: [200, 100, 200],
