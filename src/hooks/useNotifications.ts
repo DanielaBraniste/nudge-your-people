@@ -16,7 +16,7 @@ interface Person {
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
-  const activeTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const activeTimeoutsRef = useRef<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
@@ -95,17 +95,16 @@ const showNotification = async (notif: any) => {
         
         await registration.showNotification(`Time to catch up with ${notif.personName}!`, {
           body: `Don't forget to ${getMethodText(notif.method)} ${notif.personName}`,
-          icon: '/icon-192x192.png', // Update this path to match your icon
-          badge: '/badge-72x72.png', // Optional badge icon
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
           tag: notif.personId,
           requireInteraction: true,
-          vibrate: [200, 100, 200],
           data: {
             personId: notif.personId,
             personName: notif.personName,
             url: window.location.origin
           }
-        });
+        } as NotificationOptions);
       } catch (swError) {
         console.log('Service Worker notification failed, falling back:', swError);
         
