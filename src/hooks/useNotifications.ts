@@ -16,7 +16,7 @@ interface Person {
 
 export const useNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
-  const activeTimeoutsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const activeTimeoutsRef = useRef<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
