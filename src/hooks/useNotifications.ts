@@ -24,7 +24,51 @@ export const useNotifications = () => {
       setPermission(Notification.permission);
     }
 
-    // Check for pending notifications every minute
+    // Register Periodic Background Sync (fires SW even when app is closed)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(async (registration) => {
+        if ('periodicSync' in registration) {
+          try {
+            await (registration as any).periodicSync.register('check-notifications', {
+              minInterval: 60 * 60 * 1000, // 1 hour minimum
+            });
+            console.log('Periodic sync registered');
+          } catch (e) {
+            console.log('Periodic sync not available:', e);
+          }
+        }
+      });
+
+      // Listen for SW messages (e.g., NOTIFICATION_FIRED to reschedule)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'NOTIFICATION_FIRED') {
+          const personId = event.data.personId;
+          const storedPeople = localStorage.getItem('catchUpPeople');
+          if (storedPeople) {
+            try {
+              const people: Person[] = JSON.parse(storedPeople);
+              const person = people.find(p => p.id === personId);
+              if (person) {
+                // Mark as fired in localStorage
+                const scheduledNotifications = JSON.parse(
+                  localStorage.getItem('scheduledNotifications') || '{}'
+                );
+                if (scheduledNotifications[personId]) {
+                  scheduledNotifications[personId].fired = true;
+                  localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+                }
+                // Reschedule
+                setTimeout(() => scheduleNotification(person), 2000);
+              }
+            } catch (e) {
+              console.error('Error rescheduling after SW fire:', e);
+            }
+          }
+        }
+      });
+    }
+
+    // Check for pending notifications every minute (fallback when app is open)
     const checkInterval = setInterval(() => {
       checkAndFirePendingNotifications();
     }, 60000);
@@ -34,7 +78,6 @@ export const useNotifications = () => {
 
     return () => {
       clearInterval(checkInterval);
-      // Clear all timeouts on unmount
       Object.values(activeTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
     };
   }, []);
