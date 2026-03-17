@@ -24,7 +24,51 @@ export const useNotifications = () => {
       setPermission(Notification.permission);
     }
 
-    // Check for pending notifications every minute
+    // Register Periodic Background Sync (fires SW even when app is closed)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(async (registration) => {
+        if ('periodicSync' in registration) {
+          try {
+            await (registration as any).periodicSync.register('check-notifications', {
+              minInterval: 60 * 60 * 1000, // 1 hour minimum
+            });
+            console.log('Periodic sync registered');
+          } catch (e) {
+            console.log('Periodic sync not available:', e);
+          }
+        }
+      });
+
+      // Listen for SW messages (e.g., NOTIFICATION_FIRED to reschedule)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'NOTIFICATION_FIRED') {
+          const personId = event.data.personId;
+          const storedPeople = localStorage.getItem('catchUpPeople');
+          if (storedPeople) {
+            try {
+              const people: Person[] = JSON.parse(storedPeople);
+              const person = people.find(p => p.id === personId);
+              if (person) {
+                // Mark as fired in localStorage
+                const scheduledNotifications = JSON.parse(
+                  localStorage.getItem('scheduledNotifications') || '{}'
+                );
+                if (scheduledNotifications[personId]) {
+                  scheduledNotifications[personId].fired = true;
+                  localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+                }
+                // Reschedule
+                setTimeout(() => scheduleNotification(person), 2000);
+              }
+            } catch (e) {
+              console.error('Error rescheduling after SW fire:', e);
+            }
+          }
+        }
+      });
+    }
+
+    // Check for pending notifications every minute (fallback when app is open)
     const checkInterval = setInterval(() => {
       checkAndFirePendingNotifications();
     }, 60000);
@@ -34,7 +78,6 @@ export const useNotifications = () => {
 
     return () => {
       clearInterval(checkInterval);
-      // Clear all timeouts on unmount
       Object.values(activeTimeoutsRef.current).forEach(timeout => clearTimeout(timeout));
     };
   }, []);
@@ -439,11 +482,7 @@ const getDayOfWeekNumber = (dayName: string): number => {
       
       const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
-      // Store scheduled notification
-      const scheduledNotifications = JSON.parse(
-        localStorage.getItem('scheduledNotifications') || '{}'
-      );
-      scheduledNotifications[person.id] = {
+      const notifData = {
         personId: person.id,
         personName: person.name,
         method: person.method,
@@ -452,7 +491,21 @@ const getDayOfWeekNumber = (dayName: string): number => {
         timezone: timezone,
         fired: false,
       };
+
+      // Store in localStorage (for app-level checks)
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      scheduledNotifications[person.id] = notifData;
       localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+
+      // Sync to Service Worker IndexedDB (so SW can fire notifications when app is closed)
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SCHEDULE_NOTIFICATION',
+          data: notifData,
+        });
+      }
 
       // Clear existing timeout for this person
       if (activeTimeoutsRef.current[person.id]) {
@@ -460,7 +513,7 @@ const getDayOfWeekNumber = (dayName: string): number => {
         delete activeTimeoutsRef.current[person.id];
       }
 
-      // Schedule notification with setTimeout (max ~24.8 days due to setTimeout limit)
+      // Schedule notification with setTimeout as fallback (works when app is open)
       if (delay > 0 && delay < 2147483647) {
         activeTimeoutsRef.current[person.id] = setTimeout(() => {
           const currentNotifications = JSON.parse(
@@ -494,12 +547,20 @@ const getDayOfWeekNumber = (dayName: string): number => {
         delete activeTimeoutsRef.current[personId];
       }
 
-      // Remove from storage
+      // Remove from localStorage
       const scheduledNotifications = JSON.parse(
         localStorage.getItem('scheduledNotifications') || '{}'
       );
       delete scheduledNotifications[personId];
       localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+
+      // Remove from SW IndexedDB
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CANCEL_NOTIFICATION',
+          data: { id: personId },
+        });
+      }
     } catch (error) {
       console.error('Error canceling notification:', error);
     }
