@@ -439,11 +439,7 @@ const getDayOfWeekNumber = (dayName: string): number => {
       
       const formattedTime = formatInTimeZone(nextTime, timezone, 'PPp');
 
-      // Store scheduled notification
-      const scheduledNotifications = JSON.parse(
-        localStorage.getItem('scheduledNotifications') || '{}'
-      );
-      scheduledNotifications[person.id] = {
+      const notifData = {
         personId: person.id,
         personName: person.name,
         method: person.method,
@@ -452,7 +448,21 @@ const getDayOfWeekNumber = (dayName: string): number => {
         timezone: timezone,
         fired: false,
       };
+
+      // Store in localStorage (for app-level checks)
+      const scheduledNotifications = JSON.parse(
+        localStorage.getItem('scheduledNotifications') || '{}'
+      );
+      scheduledNotifications[person.id] = notifData;
       localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+
+      // Sync to Service Worker IndexedDB (so SW can fire notifications when app is closed)
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SCHEDULE_NOTIFICATION',
+          data: notifData,
+        });
+      }
 
       // Clear existing timeout for this person
       if (activeTimeoutsRef.current[person.id]) {
@@ -460,7 +470,7 @@ const getDayOfWeekNumber = (dayName: string): number => {
         delete activeTimeoutsRef.current[person.id];
       }
 
-      // Schedule notification with setTimeout (max ~24.8 days due to setTimeout limit)
+      // Schedule notification with setTimeout as fallback (works when app is open)
       if (delay > 0 && delay < 2147483647) {
         activeTimeoutsRef.current[person.id] = setTimeout(() => {
           const currentNotifications = JSON.parse(
