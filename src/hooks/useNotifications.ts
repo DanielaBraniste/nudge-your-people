@@ -504,12 +504,20 @@ const getDayOfWeekNumber = (dayName: string): number => {
         delete activeTimeoutsRef.current[personId];
       }
 
-      // Remove from storage
+      // Remove from localStorage
       const scheduledNotifications = JSON.parse(
         localStorage.getItem('scheduledNotifications') || '{}'
       );
       delete scheduledNotifications[personId];
       localStorage.setItem('scheduledNotifications', JSON.stringify(scheduledNotifications));
+
+      // Remove from SW IndexedDB
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'CANCEL_NOTIFICATION',
+          data: { id: personId },
+        });
+      }
     } catch (error) {
       console.error('Error canceling notification:', error);
     }
